@@ -1,0 +1,55 @@
+Excerpt of the Debian unifont package copyright file (https://metadata.ftp-master.debian.org/changelogs/main/u/unifont/oldoldoldstable_copyright). assets/unifont.ttf is the GNU Unifont TrueType build of 2008-07-09; the font-file license below has applied to Unifont glyphs since then. Later Unifont releases (13.0.04+) are also available under the SIL OFL 1.1.
+
+Upstream Author: Paul Hardy <unifoundry@unifoundry.com>
+
+Upstream packaging:
+     Copyright (c) 2007-2014 Paul Hardy <unifoundry@unifoundry.com>
+
+Other files:
+     Original unifont.hex and Perl scripts:
+        (c) 1998-2003 Roman Czyborra;
+     Unibit and Wen Quan Yi glyphs:
+        (c) 2004-2013 Qianqian Fang and the Wen Quan Yi Board of Trustees;
+     Glyphs in Michael Everson's ConScript Unicode Registry (CSUR):
+        (c) 2012 Wojciech Stryjewski (Tengwar and Klingon CSUR scripts)
+        (c) 2013, 2014 Paul Hardy (Cirth and Aiha CSUR scripts)
+        (c) 2013, 2014 Andrew Miller (all other CSUR scripts)
+     Supplemental Multilingual Plane Glyphs pre-Unicode 7.0 release:
+        (c) 2013, 2014 Andrew Miller and Paul Hardy
+     Higher plane glyphs above Supplemental Multilingual Plane (above Plane 1):
+        (c) 2013 Andrew Miller
+     Shell, Perl, & FontForge scripts for converting unifont.hex
+        into TrueType:
+        (c) 2005-2008 Luis Alejandro González Miranda;
+     Additions to complete Unicode Plane 0, C & Perl programs,
+        modifications to original programs, & GNU/Linux packaging:
+        (c) 2007-2014 Paul Hardy, (c) 2013, 2014 Andrew Miller
+     Modifications to existing Unicode blocks (see ChangeLog for details):
+        (c) 2014 Paul Hardy, Joshua Krämer, Andrew Miller, Nils Dagsson
+        Moskopp, and Umbreon126.
+     Additions to Unicode Supplemental Multilingual Plane after Unicode 7.0
+        release (see ChangeLog for full details):
+        (c) 2014 Paul Hardy, Andrew Miller, Nils Dagsson Moskopp, and
+        Umbreon126.
+     debian/ files:
+        (c) 2013, 2014 Paul Hardy
+
+License for font files:
+
+   All glyphs are released under the GNU General Public License
+   (GPL) version 2 or (at your option) a later version, with the
+   GNU font embedding exception:
+
+        ** GPL v2.0 license with font embedding exception:
+
+        As a special exception, if you create a document which
+        uses this font, and embed this font or unaltered portions
+        of this font into the document, this font does not by
+        itself cause the resulting document to be covered by
+        the GNU General Public License. This exception does not
+        however invalidate any other reasons why the document
+        might be covered by the GNU General Public License.
+        If you modify this font, you may extend this exception
+        to your version of the font, but you are not obligated
+        to do so. If you do not wish to do so, delete this
+        exception statement from your version.
