@@ -50,7 +50,7 @@ module Slug
     KERNING_UNSCALED = 2
 
     # `Outline#flags` bits.
-    OUTLINE_NONE          = 0
+    OUTLINE_NONE          =   0
     OUTLINE_EVEN_ODD_FILL = 0x2
 
     # `Bitmap#pixel_mode` values.
@@ -296,36 +296,36 @@ module Slug
       namedstyle : VarNamedStyle*
     end
 
-    fun FT_Init_FreeType(alibrary : Library**) : Error
-    fun FT_Done_FreeType(library : Library*) : Error
-    fun FT_New_Face(library : Library*, filepathname : UInt8*, face_index : Long, aface : Face**) : Error
-    fun FT_Done_Face(face : Face*) : Error
+    fun Slug_FT_Init_FreeType = FT_Init_FreeType(alibrary : Library**) : Error
+    fun Slug_FT_Done_FreeType = FT_Done_FreeType(library : Library*) : Error
+    fun Slug_FT_New_Face = FT_New_Face(library : Library*, filepathname : UInt8*, face_index : Long, aface : Void*) : Error
+    fun Slug_FT_Done_Face = FT_Done_Face(face : Void*) : Error
 
-    fun FT_Set_Char_Size(face : Face*, char_width : F26Dot6, char_height : F26Dot6, horz_resolution : UInt, vert_resolution : UInt) : Error
-    fun FT_Set_Pixel_Sizes(face : Face*, pixel_width : UInt, pixel_height : UInt) : Error
+    fun Slug_FT_Set_Char_Size = FT_Set_Char_Size(face : Void*, char_width : F26Dot6, char_height : F26Dot6, horz_resolution : UInt, vert_resolution : UInt) : Error
+    fun Slug_FT_Set_Pixel_Sizes = FT_Set_Pixel_Sizes(face : Face*, pixel_width : UInt, pixel_height : UInt) : Error
 
-    fun FT_Load_Glyph(face : Face*, glyph_index : UInt, load_flags : Int32) : Error
-    fun FT_Render_Glyph(slot : GlyphSlot*, render_mode : RenderMode) : Error
+    fun Slug_FT_Load_Glyph = FT_Load_Glyph(face : Void*, glyph_index : UInt, load_flags : Int32) : Error
+    fun Slug_FT_Render_Glyph = FT_Render_Glyph(slot : Void*, render_mode : Int32) : Error
 
-    fun FT_Get_Char_Index(face : Face*, charcode : ULong) : UInt
-    fun FT_Get_First_Char(face : Face*, agindex : UInt*) : ULong
-    fun FT_Get_Next_Char(face : Face*, char_code : ULong, agindex : UInt*) : ULong
-    fun FT_Get_Kerning(face : Face*, left_glyph : UInt, right_glyph : UInt, kern_mode : UInt, akerning : Vector*) : Error
+    fun Slug_FT_Get_Char_Index = FT_Get_Char_Index(face : Void*, charcode : ULong) : UInt
+    fun Slug_FT_Get_First_Char = FT_Get_First_Char(face : Face*, agindex : UInt*) : ULong
+    fun Slug_FT_Get_Next_Char = FT_Get_Next_Char(face : Face*, char_code : ULong, agindex : UInt*) : ULong
+    fun Slug_FT_Get_Kerning = FT_Get_Kerning(face : Face*, left_glyph : UInt, right_glyph : UInt, kern_mode : UInt, akerning : Vector*) : Error
 
-    fun FT_Get_Sfnt_Table(face : Face*, tag : SfntTag) : Void*
-    fun FT_Load_Sfnt_Table(face : Face*, tag : ULong, offset : Long, buffer : Byte*, length : ULong*) : Error
+    fun Slug_FT_Get_Sfnt_Table = FT_Get_Sfnt_Table(face : Void*, tag : Int32) : Void*
+    fun Slug_FT_Load_Sfnt_Table = FT_Load_Sfnt_Table(face : Face*, tag : ULong, offset : Long, buffer : Byte*, length : ULong*) : Error
 
-    fun FT_Outline_Decompose(outline : Outline*, func_interface : OutlineFuncs*, user : Void*) : Error
-    fun FT_Outline_Get_CBox(outline : Outline*, acbox : BBox*) : Void
-    fun FT_Outline_EmboldenXY(outline : Outline*, xstrength : Pos, ystrength : Pos) : Error
+    fun Slug_FT_Outline_Decompose = FT_Outline_Decompose(outline : Outline*, func_interface : OutlineFuncs*, user : Void*) : Error
+    fun Slug_FT_Outline_Get_CBox = FT_Outline_Get_CBox(outline : Outline*, acbox : BBox*) : Void
+    fun Slug_FT_Outline_EmboldenXY = FT_Outline_EmboldenXY(outline : Void*, xstrength : Pos, ystrength : Pos) : Error
 
-    fun FT_Get_MM_Var(face : Face*, amaster : MMVar**) : Error
-    fun FT_Done_MM_Var(library : Library*, amaster : MMVar*) : Error
-    fun FT_Set_Var_Design_Coordinates(face : Face*, num_coords : UInt, coords : Fixed*) : Error
-    fun FT_Get_Var_Design_Coordinates(face : Face*, num_coords : UInt, coords : Fixed*) : Error
+    fun Slug_FT_Get_MM_Var = FT_Get_MM_Var(face : Void*, amaster : Void*) : Error
+    fun Slug_FT_Done_MM_Var = FT_Done_MM_Var(library : Library*, amaster : Void*) : Error
+    fun Slug_FT_Set_Var_Design_Coordinates = FT_Set_Var_Design_Coordinates(face : Face*, num_coords : UInt, coords : Fixed*) : Error
+    fun Slug_FT_Get_Var_Design_Coordinates = FT_Get_Var_Design_Coordinates(face : Void*, num_coords : UInt, coords : Fixed*) : Error
 
-    fun FT_Palette_Data_Get(face : Face*, apalette_data : PaletteData*) : Error
-    fun FT_Palette_Select(face : Face*, palette_index : UShort, apalette : Color**) : Error
-    fun FT_Get_Color_Glyph_Layer(face : Face*, glyph_index : UInt, aglyph_index : UInt*, acolor_index : UInt*, iterator : LayerIterator*) : Bool
+    fun Slug_FT_Palette_Data_Get = FT_Palette_Data_Get(face : Face*, apalette_data : PaletteData*) : Error
+    fun Slug_FT_Palette_Select = FT_Palette_Select(face : Face*, palette_index : UShort, apalette : Color**) : Error
+    fun Slug_FT_Get_Color_Glyph_Layer = FT_Get_Color_Glyph_Layer(face : Face*, glyph_index : UInt, aglyph_index : UInt*, acolor_index : UInt*, iterator : LayerIterator*) : Bool
   end
 end

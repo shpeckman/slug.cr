@@ -83,7 +83,7 @@ module Slug
 
       # COLR v0: solid layers, bottom first.
       result = Result::Ok
-      while result.ok? && LibFT.FT_Get_Color_Glyph_Layer(face, glyph_id, pointerof(layer_glyph), pointerof(color_index), pointerof(iterator)) != 0
+      while result.ok? && LibFT.Slug_FT_Get_Color_Glyph_Layer(face, glyph_id, pointerof(layer_glyph), pointerof(color_index), pointerof(iterator)) != 0
         unless palette_loaded
           palette = load_palette(font, face)
           palette_loaded = true
@@ -129,10 +129,10 @@ module Slug
     private def load_palette(font : Font, face : LibFT::Face*) : Array(StaticArray(Float32, 4))?
       state = font.color_state
       data = uninitialized LibFT::PaletteData
-      return nil if LibFT.FT_Palette_Data_Get(face, pointerof(data)) != 0
+      return nil if LibFT.Slug_FT_Palette_Data_Get(face, pointerof(data)) != 0
       return nil if data.num_palettes == 0 || data.num_palette_entries == 0
       colors = Pointer(LibFT::Color).null
-      return nil if LibFT.FT_Palette_Select(face, state.palette.to_u16, pointerof(colors)) != 0
+      return nil if LibFT.Slug_FT_Palette_Select(face, state.palette.to_u16, pointerof(colors)) != 0
 
       count = data.num_palette_entries.to_i
       palette = Array(StaticArray(Float32, 4)).new(count)

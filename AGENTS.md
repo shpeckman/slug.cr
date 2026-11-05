@@ -38,6 +38,7 @@ Use `LIBGL_ALWAYS_SOFTWARE=1` for llvmpipe. EGL uses Mesa's surfaceless platform
 - Plain and effects fragment variants share `slug.frag.glsl`; insert `effects.glsl` after the prelude for the effects variant.
 - The renderer uploads only new atlas rows. Atlas ID changes replace textures; growth uses GPU copy when available and CPU re-upload otherwise.
 - Persistent streaming fences every written range. Wait before reuse and on wrap. Retained batches own separate GL buffers.
+- FreeType imports another shard may also declare use `Slug_FT_*` Crystal aliases and neutral `Void*` signatures; duplicate C imports must have identical signatures to coexist.
 - Native scope is monochrome and COLRv0/CPAL. Do not copy C paint, clip or advanced-blend paths without porting their core representation too.
 - Keep shader license notices and bundled font licenses intact.
 

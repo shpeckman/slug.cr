@@ -160,10 +160,10 @@ module Slug
         next
       end
 
-      glyph_id = LibFT.FT_Get_Char_Index(face, codepoint)
+      glyph_id = LibFT.Slug_FT_Get_Char_Index(face.as(Void*), codepoint)
       if kerning && previous != 0
         kern = LibFT::Vector.new
-        if LibFT.FT_Get_Kerning(face, previous, glyph_id, LibFT::KERNING_UNSCALED.to_u32, pointerof(kern)) == 0
+        if LibFT.Slug_FT_Get_Kerning(face, previous, glyph_id, LibFT::KERNING_UNSCALED.to_u32, pointerof(kern)) == 0
           x += kern.x.to_f32 * scale
         end
       end

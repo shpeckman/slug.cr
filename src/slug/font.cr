@@ -58,19 +58,19 @@ module Slug
     # raising `Error` on failure. The face is owned by the font.
     def self.open(path : String, face_index : Int = 0) : Font
       library = Pointer(LibFT::Library).null
-      unless LibFT.FT_Init_FreeType(pointerof(library)) == 0
+      unless LibFT.Slug_FT_Init_FreeType(pointerof(library)) == 0
         raise Error.new(Result::FreeType, "FT_Init_FreeType failed")
       end
       face = Pointer(LibFT::Face).null
-      unless LibFT.FT_New_Face(library, path, face_index.to_i64, pointerof(face)) == 0
-        LibFT.FT_Done_FreeType(library)
+      unless LibFT.Slug_FT_New_Face(library, path, face_index.to_i64, pointerof(face).as(Void*)) == 0
+        LibFT.Slug_FT_Done_FreeType(library)
         raise Error.new(Result::FreeType, "cannot open #{path}")
       end
       begin
         new(face, library)
       rescue ex
-        LibFT.FT_Done_Face(face)
-        LibFT.FT_Done_FreeType(library)
+        LibFT.Slug_FT_Done_Face(face.as(Void*))
+        LibFT.Slug_FT_Done_FreeType(library)
         raise ex
       end
     end
@@ -101,8 +101,8 @@ module Slug
     def close : Nil
       return if @closed
       @closed = true
-      LibFT.FT_Done_Face(@face) if @owns_face
-      LibFT.FT_Done_FreeType(@library) if @owns_library
+      LibFT.Slug_FT_Done_Face(@face.as(Void*)) if @owns_face
+      LibFT.Slug_FT_Done_FreeType(@library) if @owns_library
       nil
     end
 
@@ -156,7 +156,7 @@ module Slug
       ensure_open
       raise Error.new(Result::InvalidArgument) if palette >= @metrics.palette_count
       data = LibFT::PaletteData.new
-      unless LibFT.FT_Palette_Data_Get(@face, pointerof(data)) == 0
+      unless LibFT.Slug_FT_Palette_Data_Get(@face, pointerof(data)) == 0
         raise Error.new(Result::FreeType)
       end
       flags = data.palette_flags.null? ? 0_u16 : data.palette_flags[palette]
@@ -179,7 +179,7 @@ module Slug
       entries = 0_u32
       unless colors.empty?
         data = LibFT::PaletteData.new
-        entries = LibFT.FT_Palette_Data_Get(@face, pointerof(data)) == 0 ? data.num_palette_entries.to_u32 : 0_u32
+        entries = LibFT.Slug_FT_Palette_Data_Get(@face, pointerof(data)) == 0 ? data.num_palette_entries.to_u32 : 0_u32
       end
       colors.each do |c|
         raise Error.new(Result::InvalidArgument) if c.index >= entries
@@ -220,7 +220,7 @@ module Slug
           raise Error.new(Result::InvalidArgument)
         end
         size = (canonical.pixels_per_em * 64.0_f32).round(mode: :ties_away).to_i64
-        unless LibFT.FT_Set_Char_Size(@face, 0_i64, size, 72_u32, 72_u32) == 0
+        unless LibFT.Slug_FT_Set_Char_Size(@face.as(Void*), 0_i64, size, 72_u32, 72_u32) == 0
           raise Error.new(Result::FreeType)
         end
       end
@@ -253,7 +253,7 @@ module Slug
         fixed[i] = (c * 65536.0_f32).round(mode: :ties_away).to_i64
       end
       ptr = coords.empty? ? Pointer(LibFT::Fixed).null : fixed.to_unsafe
-      error = LibFT.FT_Set_Var_Design_Coordinates(@face, coords.size.to_u32, ptr)
+      error = LibFT.Slug_FT_Set_Var_Design_Coordinates(@face, coords.size.to_u32, ptr)
       raise Error.new(Result::FreeType) if error != 0 && error != -1 # -1: unchanged
       raise Error.new(Result::FreeType) unless read_coords(fixed)
       @variation = intern_variation(fixed, outline)
@@ -302,9 +302,9 @@ module Slug
 
       if (face.face_flags & LibFT::FACE_FLAG_MULTIPLE_MASTERS) != 0
         mm = Pointer(LibFT::MMVar).null
-        if LibFT.FT_Get_MM_Var(@face, pointerof(mm)) == 0
+        if LibFT.Slug_FT_Get_MM_Var(@face.as(Void*), pointerof(mm).as(Void*)) == 0
           @axis_count = mm.value.num_axis.to_i
-          LibFT.FT_Done_MM_Var(@face.value.glyph.value.library, mm)
+          LibFT.Slug_FT_Done_MM_Var(@face.value.glyph.value.library, mm.as(Void*))
         end
       end
 
@@ -318,7 +318,7 @@ module Slug
       face = @face.value
       upem = face.units_per_em.to_f32
       palettes = LibFT::PaletteData.new
-      palette_count = LibFT.FT_Palette_Data_Get(@face, pointerof(palettes)) == 0 ? palettes.num_palettes.to_u32 : 0_u32
+      palette_count = LibFT.Slug_FT_Palette_Data_Get(@face, pointerof(palettes)) == 0 ? palettes.num_palettes.to_u32 : 0_u32
       @metrics = FontMetrics.new(
         face.ascender.to_f32 / upem,
         face.descender.to_f32 / upem,
@@ -330,18 +330,18 @@ module Slug
     end
 
     private def cap_height_units : Float32
-      os2 = LibFT.FT_Get_Sfnt_Table(@face, LibFT::SfntTag::OS2).as(LibFT::OS2*)
+      os2 = LibFT.Slug_FT_Get_Sfnt_Table(@face.as(Void*), LibFT::SfntTag::OS2.value).as(LibFT::OS2*)
       if !os2.null? && os2.value.version >= 2 && os2.value.s_cap_height > 0
         return os2.value.s_cap_height.to_f32
       end
 
-      h = LibFT.FT_Get_Char_Index(@face, 0x48_u64) # 'H'
+      h = LibFT.Slug_FT_Get_Char_Index(@face.as(Void*), 0x48_u64) # 'H'
       if h != 0 &&
-         LibFT.FT_Load_Glyph(@face, h, LibFT::LOAD_NO_SCALE | LibFT::LOAD_NO_HINTING | LibFT::LOAD_NO_BITMAP) == 0 &&
+         LibFT.Slug_FT_Load_Glyph(@face.as(Void*), h, LibFT::LOAD_NO_SCALE | LibFT::LOAD_NO_HINTING | LibFT::LOAD_NO_BITMAP) == 0 &&
          @face.value.glyph.value.format == LibFT::GLYPH_FORMAT_OUTLINE
         outline = @face.value.glyph.value.outline
         box = LibFT::BBox.new
-        LibFT.FT_Outline_Get_CBox(pointerof(outline), pointerof(box))
+        LibFT.Slug_FT_Outline_Get_CBox(pointerof(outline), pointerof(box))
         return box.y_max.to_f32
       end
       @face.value.ascender.to_f32
@@ -351,12 +351,12 @@ module Slug
     # COLRv1 is out of scope: a v1 table falls back to monochrome.
     private def color_format : ColorFormat
       length = 0_u64
-      if LibFT.FT_Load_Sfnt_Table(@face, LibFT::TAG_COLR, 0_i64, Pointer(LibFT::Byte).null, pointerof(length)) != 0 || length < 2
+      if LibFT.Slug_FT_Load_Sfnt_Table(@face, LibFT::TAG_COLR, 0_i64, Pointer(LibFT::Byte).null, pointerof(length)) != 0 || length < 2
         return ColorFormat::None
       end
       header = StaticArray(UInt8, 2).new(0_u8)
       read = 2_u64
-      unless LibFT.FT_Load_Sfnt_Table(@face, LibFT::TAG_COLR, 0_i64, header.to_unsafe, pointerof(read)) == 0
+      unless LibFT.Slug_FT_Load_Sfnt_Table(@face, LibFT::TAG_COLR, 0_i64, header.to_unsafe, pointerof(read)) == 0
         return ColorFormat::None
       end
       header[0] == 0 && header[1] == 0 ? ColorFormat::COLR0 : ColorFormat::None
@@ -364,7 +364,7 @@ module Slug
 
     private def read_coords(coords : Array(LibFT::Fixed)) : Bool
       return true if @axis_count == 0
-      LibFT.FT_Get_Var_Design_Coordinates(@face, @axis_count.to_u32, coords.to_unsafe) == 0
+      LibFT.Slug_FT_Get_Var_Design_Coordinates(@face.as(Void*), @axis_count.to_u32, coords.to_unsafe) == 0
     end
 
     private def intern_variation(coords : Array(LibFT::Fixed), outline : OutlineStyle) : Int32

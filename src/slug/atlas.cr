@@ -326,7 +326,7 @@ module Slug
       while index < text.size
         codepoint, index = UTF8.next(text, index)
         next if codepoint == '\n'.ord
-        glyph_id = LibFT.FT_Get_Char_Index(font.face, codepoint)
+        glyph_id = LibFT.Slug_FT_Get_Char_Index(font.face.as(Void*), codepoint)
         glyph(font, glyph_id)
         color(font, glyph_id)
       end

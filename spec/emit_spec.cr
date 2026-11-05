@@ -54,7 +54,7 @@ describe Slug do
   end
 
   it "emits placed glyphs" do
-    glyph_id = Slug::LibFT.FT_Get_Char_Index(font.face, 'A'.ord)
+    glyph_id = Slug::LibFT.Slug_FT_Get_Char_Index(font.face.as(Void*), 'A'.ord)
     placement = Slug::Placement.new(glyph_id: glyph_id, x: 2.0_f32, y: 3.0_f32)
     instances = Slug.emit_glyphs(atlas, font, Slug::Style.new, [placement])
     instances.size.should eq(1)

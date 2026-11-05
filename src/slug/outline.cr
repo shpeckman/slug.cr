@@ -81,7 +81,7 @@ module Slug
         flags |= LibFT::LOAD_FORCE_AUTOHINT if style.autohint?
         scale = 1.0_f32 / (style.pixels_per_em * 64.0_f32)
       end
-      return Result::FreeType unless LibFT.FT_Load_Glyph(face, glyph_id, flags) == 0
+      return Result::FreeType unless LibFT.Slug_FT_Load_Glyph(face.as(Void*), glyph_id, flags) == 0
 
       @scale = scale
       slot = face.value.glyph
@@ -91,7 +91,7 @@ module Slug
       src = slot.value.outline
       if style.embolden > 0.0_f32
         strength = (style.embolden / scale).round(mode: :ties_away).to_i64
-        return Result::FreeType unless LibFT.FT_Outline_EmboldenXY(pointerof(src), strength, strength) == 0
+        return Result::FreeType unless LibFT.Slug_FT_Outline_EmboldenXY(pointerof(src).as(Void*), strength, strength) == 0
       end
 
       points = src.n_points.to_i
@@ -138,7 +138,7 @@ module Slug
       source.contours = @contours.to_unsafe
       source.flags = @source_flags
 
-      return Result::FreeType unless LibFT.FT_Outline_Decompose(pointerof(source), pointerof(funcs), Box.box(builder)) == 0
+      return Result::FreeType unless LibFT.Slug_FT_Outline_Decompose(pointerof(source), pointerof(funcs), Box.box(builder)) == 0
       builder.flush_contour
 
       # Signed area of the control polygons: positive = counter-clockwise outer contours.
