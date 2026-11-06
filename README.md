@@ -66,4 +66,6 @@ build/bench-gl
 
 The core benchmark covers cold and batched atlas generation, warm emission, measurement and trimming. The GPU benchmark uses surfaceless EGL and covers initial, incremental and no-op atlas synchronization plus retained and streaming draws with plain and effects shaders. Draw samples call `glFinish` after the requested frames so GPU work is included.
 
-Both binaries accept `--font PATH`, `--samples COUNT` and `--warmup COUNT`. The core binary also accepts `--workers COUNT`; the GPU binary accepts `--frames COUNT`, `--width PIXELS`, `--height PIXELS` and `--es`. Results include median, mean, minimum, maximum and throughput.
+Both binaries accept `--font PATH`, `--samples COUNT` and `--warmup COUNT`. The core binary also accepts `--workers COUNT`; the GPU binary accepts `--frames COUNT`, `--width PIXELS`, `--height PIXELS` and `--es`. Timing results include median, mean, p95, minimum, maximum and throughput.
+
+Reports also include GC allocation and collection counts per measured operation, atlas used/allocated bytes, instance payloads and Linux peak RSS. Draw operations cover all frames in one sample. The core report shows atlas usage before and after trimming. GPU reports cover requested texture, retained-buffer, streaming-frame and framebuffer payload sizes; they exclude driver overhead and do not measure actual VRAM usage. Memory collection stays outside timed regions.

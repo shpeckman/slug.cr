@@ -12,7 +12,7 @@ Native Crystal Slug port. Core uses FreeType directly; no C Slug linkage. `src/s
 - `src/slug/gl.cr`: dynamically loaded GL/GLES renderer, streaming and retained batches.
 - `shaders/`: GL/GLES preludes, vertex shader, fragment shader and effects define.
 - `examples/`: visual demo with surfaceless EGL or GLFW and PPM readback.
-- `bench/`: release-mode core and EGL renderer benchmarks with shared workloads and statistics.
+- `bench/`: release-mode core and EGL renderer benchmarks with shared timing, allocation and memory statistics.
 - `spec/`: Crystal specs.
 - `assets/`: bundled fonts and their licenses.
 

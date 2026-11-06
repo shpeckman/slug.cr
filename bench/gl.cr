@@ -33,6 +33,9 @@ begin
   puts "backend: #{renderer.es? ? "OpenGL ES" : "OpenGL"}; persistent streaming: #{renderer.persistent_streaming?}"
   puts "viewport: #{options.width}x#{options.height}; instances: #{plain.size}; frames per sample: #{options.frames}"
   puts "samples: #{options.samples}; warmup: #{options.warmup}"
+  SlugBench::Memory.atlas("GPU atlas", atlas)
+  SlugBench::Memory.gpu_buffers(plain.size, effects.size, options.width, options.height)
+  puts "GPU memory reports requested payload only; driver overhead is excluded"
 
   sync_atlas = atlas
   initial_sync_setup = -> {
@@ -91,6 +94,7 @@ begin
     end
     finish.call
   end
+  SlugBench::Memory.peak_rss
 ensure
   renderer.destroy_batch(plain_batch)
   renderer.destroy_batch(effects_batch)
