@@ -13,8 +13,8 @@ describe Slug do
     font.close
   end
 
-  it "keeps the native instance layout at 88 bytes" do
-    sizeof(Slug::Instance).should eq(88)
+  it "keeps the native instance layout at 84 bytes" do
+    sizeof(Slug::Instance).should eq(84)
   end
 
   it "emits and measures empty text" do
@@ -43,13 +43,13 @@ describe Slug do
     color = StaticArray[0.8_f32, 0.6_f32, 0.4_f32, 0.5_f32]
     style = Slug::Style.new(
       transform: StaticArray[20.0_f32, 0.0_f32, 0.0_f32, 20.0_f32, 7.0_f32, 9.0_f32],
-      color: color, optical_weight: true, dilation: 0.5_f32, softness: 2.0_f32)
+      color: color, optical_weight: true, dilation: 0.5_f32)
     instance = Slug.emit_text(atlas, font, style, "A").first
     instance.xform.should eq(StaticArray[20.0_f32, 0.0_f32, 0.0_f32, 20.0_f32])
     instance.origin[0].should eq(7.0_f32)
     instance.origin[1].should eq(9.0_f32)
     instance.col.should eq(StaticArray[0.4_f32, 0.3_f32, 0.2_f32, 0.5_f32])
-    instance.fx.should eq(StaticArray[0.5_f32, 2.0_f32])
+    instance.dilation.should eq(0.5_f32)
     (instance.origin[3].unsafe_as(UInt32) & Slug::FLAG_WEIGHT).should_not eq(0)
   end
 
@@ -65,8 +65,8 @@ describe Slug do
   it "rejects singular transforms and invalid effects" do
     singular = Slug::Style.new(transform: StaticArray[0.0_f32, 0.0_f32, 0.0_f32, 1.0_f32, 0.0_f32, 0.0_f32])
     expect_raises(Slug::Error) { Slug.emit_text(atlas, font, singular, "A") }
-    soft = Slug::Style.new(softness: -1.0_f32)
-    expect_raises(Slug::Error) { Slug.emit_text(atlas, font, soft, "A") }
+    invalid = Slug::Style.new(dilation: Float32::NAN)
+    expect_raises(Slug::Error) { Slug.emit_text(atlas, font, invalid, "A") }
   end
 
   it "emits vector shapes and handles empty paths" do
@@ -77,7 +77,7 @@ describe Slug do
     shape = atlas.add_path(path)
     style = Slug::Style.new(dilation: 1.0_f32)
     instance = Slug.emit_shape(style, shape).not_nil!
-    instance.fx.should eq(StaticArray[1.0_f32, 0.0_f32])
+    instance.dilation.should eq(1.0_f32)
     instance.rect[2].should be > instance.rect[0]
   end
 end

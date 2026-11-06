@@ -24,7 +24,7 @@ module Slug
     def initialize(@atlas : Atlas?, @font : Font?, style : Style, capacity : Int)
       x = style.transform
       det = x[0] * x[3] - x[2] * x[1]
-      unless det.abs > 0.0_f32 && det.finite? && style.dilation.finite? && style.softness >= 0.0_f32 && style.softness.finite?
+      unless det.abs > 0.0_f32 && det.finite? && style.dilation.finite?
         raise Error.new(Result::InvalidArgument)
       end
 
@@ -33,7 +33,6 @@ module Slug
       @color = StaticArray[style.color[0] * a, style.color[1] * a, style.color[2] * a, a]
       @flags = style.optical_weight? ? FLAG_WEIGHT : 0_u32
       @dilation = style.dilation
-      @softness = style.softness
       @monochrome = style.monochrome?
       @instances = Array(Instance).new(capacity)
     end
@@ -71,7 +70,7 @@ module Slug
         origin: StaticArray[m.e, m.f, glyph.location.unsafe_as(Float32), (glyph.band_info | @flags).unsafe_as(Float32)],
         bnd: StaticArray[glyph.band_scale[0], glyph.band_scale[1], glyph.band_offset[0], glyph.band_offset[1]],
         col: color,
-        fx: StaticArray[@dilation, @softness])
+        dilation: @dilation)
     end
   end
 

@@ -1,6 +1,6 @@
 // shaders/slug.frag.glsl
-// Slug pixel shader: winding-number coverage from horizontal and vertical rays, with dilation/softness
-// effects. Built twice: plain, and with SLUG_EFFECTS (dilation, softness).
+// Slug pixel shader: winding-number coverage from horizontal and vertical rays, with dilation effects.
+// Built twice: plain, and with SLUG_EFFECTS (dilation).
 // Coverage derived from the Slug reference pixel shader, Copyright 2017 Eric Lengyel, MIT License.
 // Compiled after one of the prelude_*.glsl files.
 
@@ -11,7 +11,7 @@ in vec4 v_color;
 in vec2 v_texcoord;
 flat in vec4 v_banding;
 flat in ivec4 v_glyph;
-flat in vec2 v_effect;   // Dilation px, filter width px.
+flat in float v_dilation;
 
 layout(location = 0) out vec4 o_color;
 
@@ -90,7 +90,7 @@ float slug_coverage(float xcov, float ycov, float xwgt, float ywgt, int flags)
 }
 
 // Reference coverage of the sample at render_coord: each root r (in pixels along the ray)
-// contributes clamp(r + 0.5), a one-pixel box filter. Effects run in slug_render_soft and
+// contributes clamp(r + 0.5), a one-pixel box filter. Effects run in slug_render_shift and
 // slug_render_offset (SLUG_EFFECTS variant).
 float slug_render(vec2 render_coord, vec2 pixels_per_em, vec4 band_transform, ivec4 glyph_data)
 {
@@ -166,7 +166,7 @@ float slug_render(vec2 render_coord, vec2 pixels_per_em, vec4 band_transform, iv
 
 #ifdef SLUG_EFFECTS
 // Effects variant only (shaders/effects.glsl defines SLUG_EFFECTS): backends draw with it when an
-// instance has dilation or softness, so this code never costs registers in the plain shader.
+// instance has dilation, so this code never costs registers in the plain shader.
 
 // Fill of a winding number: 1 inside, 0 outside (nonzero or even-odd rule).
 float slug_fill(float winding, bool even_odd)
@@ -318,7 +318,7 @@ float slug_nearest_curve2(vec2 render_coord, vec2 pixels_per_em, vec4 band_trans
     return best;
 }
 
-// Thinning, and growth of a pixel or more, without softness: the outline offset by `dilation` pixels
+// Thinning, and growth of a pixel or more: the outline offset by `dilation` pixels
 // in every direction, so corners
 // grow round and thinning removes exactly the strip along the edges. Coverage is
 // clamp(0.5 + dilation - s), s the signed distance in pixels to the nearest boundary curve (negative
@@ -341,116 +341,6 @@ float slug_render_offset(vec2 render_coord, vec2 pixels_per_em, vec4 band_transf
 
     float distance = sqrt(distance2);
     float coverage = clamp(0.5 + dilation - (inside ? -distance : distance), 0.0, 1.0);
-    if ((glyph_data.w & 0x2000) != 0) coverage = sqrt(coverage);
-    return coverage;
-}
-
-const int kSoftRoots = 8;   // window roots kept per soft ray; with more the ray falls back to winding averaging
-const int kSoftRays = 16;   // sample rays per axis at most
-
-// One ray of the soft path (vertical rays run on swapped coordinates): the fill of the winding
-// number integrated over the filter window [-0.5, 0.5] (in filter widths), so overlapping contours
-// count once. Roots past the window add to the base winding; roots inside are kept sorted. average
-// is the winding averaged over the window (slug_render's per-ray sum), used when roots overflow.
-float slug_soft_ray(vec2 coord, float ppe, vec4 band_transform, ivec4 glyph_data, bool vertical, float shift,
-                    float inv_filter, float reach)
-{
-    ivec2 band_max = ivec2(glyph_data.z, glyph_data.w & 0x00FF);
-    ivec2 band_index = clamp(ivec2(coord * band_transform.xy + band_transform.zw), ivec2(0, 0), band_max);
-    ivec2 glyph_loc = glyph_data.xy;
-    int header = vertical ? band_max.y + 1 + band_index.x : band_index.y;
-    uvec2 band_data = texelFetch(slug_band, ivec2(glyph_loc.x + header, glyph_loc.y), 0).xy;
-    ivec2 band_loc = slug_band_loc(glyph_loc, band_data.y);
-    float sgn = vertical ? -1.0 : 1.0;
-
-    float roots[kSoftRoots];
-    float signs[kSoftRoots];
-    int count = 0;
-    float winding = 0.0;
-    float average = 0.0;
-
-    for (int curve_index = 0; curve_index < int(band_data.x); curve_index++) {
-        ivec2 curve_loc = ivec2(texelFetch(slug_band, ivec2(band_loc.x + curve_index, band_loc.y), 0).xy);
-
-        vec4 p12 = texelFetch(slug_curve, curve_loc, 0) - vec4(coord, coord);
-        vec2 p3 = texelFetch(slug_curve, ivec2(curve_loc.x + 1, curve_loc.y), 0).xy - coord;
-        if (vertical) {
-            p12 = p12.yxwz;
-            p3 = p3.yx;
-        }
-
-        if (max(max(p12.x, p12.z), p3.x) * ppe < reach) break;
-
-        uint code = slug_root_code(p12.y, p12.w, p3.y);
-        if (code == 0u) continue;
-        vec2 r = (slug_solve_horiz(p12, p3) * ppe + vec2(-shift, shift) * sgn) * inv_filter;
-
-        for (int k = 0; k < 2; k++) {
-            if (k == 0 ? (code & 1u) == 0u : code <= 1u) continue;
-            float u = k == 0 ? r.x : r.y;
-            float s = k == 0 ? sgn : -sgn;
-            average += s * clamp(u + 0.5, 0.0, 1.0);
-            if (u >= 0.5) {
-                winding += s;
-            } else if (u > -0.5) {
-                if (count < kSoftRoots) {
-                    int j = count++;
-                    while (j > 0 && roots[j - 1] < u) {
-                        roots[j] = roots[j - 1];
-                        signs[j] = signs[j - 1];
-                        j--;
-                    }
-                    roots[j] = u;
-                    signs[j] = s;
-                } else {
-                    count = kSoftRoots + 1;
-                }
-            }
-        }
-    }
-
-    bool even_odd = (glyph_data.w & 0x1000) != 0;
-    if (count > kSoftRoots) return even_odd ? 1.0 - abs(1.0 - fract(average * 0.5) * 2.0) : clamp(abs(average), 0.0, 1.0);
-
-    // The winding left of a root includes it; integrate from the right end of the window.
-    float covered = 0.0;
-    float upper = 0.5;
-    for (int k = 0; k < count; k++) {
-        covered += (upper - roots[k]) * slug_fill(winding, even_odd);
-        winding += signs[k];
-        upper = roots[k];
-    }
-    covered += (upper + 0.5) * slug_fill(winding, even_odd);
-    return covered;
-}
-
-// Soft coverage (filter width > 1): a filter_width^2 box around the sample. Horizontal rays at evenly
-// spaced rows integrate x exactly, vertical rays at evenly spaced columns integrate y; the two
-// estimates are averaged, or combined with max (dilation > 0) / min (dilation < 0). Under softness,
-// dilation shifts roots along each ray (not the Euclidean offset of slug_render_offset).
-// Each estimate is within 0.5 / rays of the exact box filter.
-float slug_render_soft(vec2 render_coord, vec2 pixels_per_em, vec4 band_transform, ivec4 glyph_data,
-                       float dilation, float filter_width)
-{
-    float shift = (glyph_data.w & 0x8000) != 0 ? dilation : -dilation;
-    float inv_filter = 1.0 / filter_width;
-    float reach = -0.5 * filter_width - abs(dilation);
-    // spacing up to 2 px; at least 3 rays keeps width 2 off the pixel grid (offsets of +-0.5 px)
-    int rays = min(max(int(ceil(filter_width * 0.5)) + 1, 3), kSoftRays);
-
-    float across = 0.0;
-    float down = 0.0;
-    for (int i = 0; i < rays; i++) {
-        float offset = ((float(i) + 0.5) / float(rays) - 0.5) * filter_width;
-        across += slug_soft_ray(render_coord + vec2(0.0, offset / pixels_per_em.y), pixels_per_em.x, band_transform,
-                                glyph_data, false, shift, inv_filter, reach);
-        down += slug_soft_ray(render_coord + vec2(offset / pixels_per_em.x, 0.0), pixels_per_em.y, band_transform,
-                              glyph_data, true, shift, inv_filter, reach);
-    }
-    across /= float(rays);
-    down /= float(rays);
-
-    float coverage = dilation > 0.0 ? max(across, down) : dilation < 0.0 ? min(across, down) : 0.5 * (across + down);
     if ((glyph_data.w & 0x2000) != 0) coverage = sqrt(coverage);
     return coverage;
 }
@@ -516,10 +406,9 @@ void main()
     vec2 pixels_per_em = 1.0 / (abs(dx) + abs(dy));
 
 #ifdef SLUG_EFFECTS
-    float coverage = v_effect.y > 1.0        ? slug_render_soft(v_texcoord, pixels_per_em, v_banding, v_glyph, v_effect.x, v_effect.y)
-                     : v_effect.x > 0.0 && v_effect.x < 1.0 ? slug_render_shift(v_texcoord, pixels_per_em, v_banding, v_glyph, v_effect.x)
-                     : v_effect.x != 0.0      ? slug_render_offset(v_texcoord, pixels_per_em, v_banding, v_glyph, v_effect.x)
-                                              : slug_render(v_texcoord, pixels_per_em, v_banding, v_glyph);
+    float coverage = v_dilation > 0.0 && v_dilation < 1.0 ? slug_render_shift(v_texcoord, pixels_per_em, v_banding, v_glyph, v_dilation)
+                     : v_dilation != 0.0                  ? slug_render_offset(v_texcoord, pixels_per_em, v_banding, v_glyph, v_dilation)
+                                                           : slug_render(v_texcoord, pixels_per_em, v_banding, v_glyph);
 #else
     float coverage = slug_render(v_texcoord, pixels_per_em, v_banding, v_glyph);
 #endif

@@ -2,7 +2,7 @@
 
 Native Crystal implementation of Slug text and vector rendering. FreeType outlines become curve and band atlases; the optional OpenGL renderer draws emitted instances directly on the GPU. No C Slug library is linked.
 
-Features: UTF-8 text with kerning and line breaks, shaped glyph placement, measurement, TrueType/CFF outlines, COLRv0/CPAL color layers, vector paths, nonzero/even-odd fill, optical weight, dilation and softness. COLRv1 paint graphs and advanced blend modes are not implemented.
+Features: UTF-8 text with kerning and line breaks, shaped glyph placement, measurement, TrueType/CFF outlines, COLRv0/CPAL color layers, vector paths, nonzero/even-odd fill, optical weight and dilation. COLRv1 paint graphs and advanced blend modes are not implemented.
 
 Requirements: Crystal 1.22+ and FreeType. The renderer supports OpenGL 4.3 core and OpenGL ES 3.0+. The demo uses EGL by default, or GLFW with `--glfw`.
 
@@ -51,3 +51,19 @@ crystal run examples/demo.cr -- --stream --output build/demo-stream.ppm
 ```
 
 The default demo creates a surfaceless EGL context and writes `build/demo.ppm`. `--output PATH` selects the image. `--es` selects GLES; `--glfw --interactive` keeps the window open. `--stream` uses fenced streaming instead of retained batch ranges. The demo covers text, measurement, effects, vector paths and fill rules.
+
+## Benchmarks
+
+Build optimized binaries before measuring:
+
+```sh
+devtool fs mkdir build
+devtool cr build bench/core.cr --release -o build/bench-core
+devtool cr build bench/gl.cr --release -o build/bench-gl
+build/bench-core --workers 4
+build/bench-gl
+```
+
+The core benchmark covers cold and batched atlas generation, warm emission, measurement and trimming. The GPU benchmark uses surfaceless EGL and covers initial, incremental and no-op atlas synchronization plus retained and streaming draws with plain and effects shaders. Draw samples call `glFinish` after the requested frames so GPU work is included.
+
+Both binaries accept `--font PATH`, `--samples COUNT` and `--warmup COUNT`. The core binary also accepts `--workers COUNT`; the GPU binary accepts `--frames COUNT`, `--width PIXELS`, `--height PIXELS` and `--es`. Results include median, mean, minimum, maximum and throughput.

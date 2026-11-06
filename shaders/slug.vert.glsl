@@ -12,13 +12,13 @@ layout(location = 1) in vec4 a_xform;    // Em-to-object linear part a, b, c, d.
 layout(location = 2) in vec4 a_origin;   // Object translation xy, packed glyph location z, packed band info w.
 layout(location = 3) in vec4 a_bnd;      // Band scale xy, band offset zw.
 layout(location = 4) in vec4 a_col;      // Premultiplied color.
-layout(location = 5) in vec2 a_fx;       // Dilation px, softness px.
+layout(location = 5) in float a_dilation; // Dilation px.
 
 out vec4 v_color;
 out vec2 v_texcoord;
 flat out vec4 v_banding;
 flat out ivec4 v_glyph;
-flat out vec2 v_effect;   // Dilation px, filter width px.
+flat out float v_dilation;
 
 // Moves the vertex outward so the bounding polygon grows by half a pixel in
 // viewport space and returns the matching em-space sample position. Scaling
@@ -58,9 +58,8 @@ void main()
     float ndet = u1.x * u2.y - u1.y * u2.x;
     vec2 normal = vec2(u2.y - u1.y, u1.x - u2.x) / ndet;
 
-    // Grow by half the filter width plus any positive dilation.
-    float filter_width = 1.0 + a_fx.y;
-    float grow = 0.5 * filter_width + max(a_fx.x, 0.0);
+    // Grow by half a pixel plus any positive dilation.
+    float grow = 0.5 + max(a_dilation, 0.0);
 
     vec2 p;
     v_texcoord = slug_dilate(vec4(obj, normal), vec4(em, a_origin.zw), jac,
@@ -75,5 +74,5 @@ void main()
     v_glyph = ivec4(int(g.x & 0xFFFFu), int(g.x >> 16u), int(g.y & 0xFFFFu), int(g.y >> 16u));
     v_banding = a_bnd;
     v_color = a_col;
-    v_effect = vec2(a_fx.x, filter_width);
+    v_dilation = a_dilation;
 }

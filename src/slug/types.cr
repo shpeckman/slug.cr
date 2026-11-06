@@ -196,7 +196,7 @@ module Slug
   # One drawn outline, rendered as an instance of a 4-vertex triangle strip
   # whose corners the vertex shader derives (with dilation normals and inverse
   # Jacobian) from these fields. A monochrome glyph is one instance; a color
-  # glyph is one instance per layer. 88 bytes.
+  # glyph is one instance per layer. 84 bytes.
   struct Instance
     # Outline em bounds: x min, y min, x max, y max.
     property rect : StaticArray(Float32, 4)
@@ -209,8 +209,8 @@ module Slug
     property bnd : StaticArray(Float32, 4)
     # Premultiplied color.
     property col : StaticArray(Float32, 4)
-    # Dilation in pixels x, softness in pixels y.
-    property fx : StaticArray(Float32, 2)
+    # Outline dilation in pixels.
+    property dilation : Float32
 
     # :nodoc:
     def initialize(@rect : StaticArray(Float32, 4) = StaticArray(Float32, 4).new(0.0_f32),
@@ -218,7 +218,7 @@ module Slug
                    @origin : StaticArray(Float32, 4) = StaticArray(Float32, 4).new(0.0_f32),
                    @bnd : StaticArray(Float32, 4) = StaticArray(Float32, 4).new(0.0_f32),
                    @col : StaticArray(Float32, 4) = StaticArray(Float32, 4).new(0.0_f32),
-                   @fx : StaticArray(Float32, 2) = StaticArray(Float32, 2).new(0.0_f32))
+                   @dilation : Float32 = 0.0_f32)
     end
   end
 
@@ -240,17 +240,11 @@ module Slug
     # edges along the sampling rays (corners within a third of a pixel). Draws
     # containing dilated instances use the effects shader variant.
     property dilation : Float32
-    # Blur in pixels for shadows and glows: coverage is box-filtered over
-    # 1 + softness pixels in both directions. 0 is sharp. Draws containing
-    # soft instances use the effects shader variant, whose cost grows with
-    # the softness.
-    property softness : Float32
     # Draws color glyphs as their monochrome fallback outline in the style color.
     property? monochrome : Bool
 
     def initialize(transform : StaticArray(Float32, 6)? = nil, color : StaticArray(Float32, 4)? = nil,
-                   @optical_weight : Bool = false, @dilation : Float32 = 0.0_f32,
-                   @softness : Float32 = 0.0_f32, @monochrome : Bool = false)
+                   @optical_weight : Bool = false, @dilation : Float32 = 0.0_f32, @monochrome : Bool = false)
       @transform = transform || StaticArray[1.0_f32, 0.0_f32, 0.0_f32, 1.0_f32, 0.0_f32, 0.0_f32]
       @color = color || StaticArray[1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32]
     end

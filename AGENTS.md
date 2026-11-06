@@ -12,6 +12,7 @@ Native Crystal Slug port. Core uses FreeType directly; no C Slug linkage. `src/s
 - `src/slug/gl.cr`: dynamically loaded GL/GLES renderer, streaming and retained batches.
 - `shaders/`: GL/GLES preludes, vertex shader, fragment shader and effects define.
 - `examples/`: visual demo with surfaceless EGL or GLFW and PPM readback.
+- `bench/`: release-mode core and EGL renderer benchmarks with shared workloads and statistics.
 - `spec/`: Crystal specs.
 - `assets/`: bundled fonts and their licenses.
 
@@ -26,13 +27,18 @@ devtool cr run examples/demo.cr
 devtool cr run examples/demo.cr -- --es --output build/demo-es.ppm
 devtool cr run examples/demo.cr -- --glfw --output build/demo-glfw.ppm
 devtool cr run examples/demo.cr -- --stream --output build/demo-stream.ppm
+devtool fs mkdir build
+devtool cr build bench/core.cr --release -o build/bench-core
+devtool cr build bench/gl.cr --release -o build/bench-gl
+build/bench-core --workers 4
+build/bench-gl
 ```
 
 Use `LIBGL_ALWAYS_SOFTWARE=1` for llvmpipe. EGL uses Mesa's surfaceless platform. GLFW needs a display. Inspect generated images after changing shaders or rendering code.
 
 ## Invariants
 
-- `Slug::Instance` is 88 bytes: five vec4 attributes followed by one vec2 effects attribute. Keep `types.cr`, `gl.cr` and vertex shader offsets aligned.
+- `Slug::Instance` is 84 bytes: five vec4 attributes followed by one float dilation attribute. Keep `types.cr`, `gl.cr` and vertex shader offsets aligned.
 - Curve texels are RGBA16F and band texels RG16UI, 4096 texels wide. Both textures use nearest filtering.
 - Packed band flags are defined in `types.cr`; optical weight is OR-ed in during emission.
 - Plain and effects fragment variants share `slug.frag.glsl`; insert `effects.glsl` after the prelude for the effects variant.

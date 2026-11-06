@@ -20,8 +20,6 @@ class DemoScene
     @instances.concat text("GPU text directly from Bézier outlines", 48, 604, 19, rgb(0.48, 0.67, 0.82))
     @instances.concat text("Sphinx of black quartz, judge my vow 0123456789", 48, 548, 25, rgb(0.90, 0.91, 0.93))
     @instances.concat text("Text measurement, kerning and\nmultiline layout share one walker.", 48, 452, 25, rgb(0.77, 0.82, 0.88))
-    @instances.concat text("Soft shadow", 52, 342, 39, rgba(0.1, 0.2, 0.3, 0.65), softness: 4.0_f32)
-    @instances.concat text("Soft shadow", 48, 346, 39, rgb(0.98, 0.72, 0.28))
     @instances.concat text("Bold + thin + optical weight", 48, 288, 24, rgb(0.82, 0.87, 0.94), dilation: 0.45_f32)
     @instances.concat text("Optical weight at small sizes", 48, 248, 14, rgb(0.68, 0.75, 0.84), optical: true)
 
@@ -44,7 +42,7 @@ class DemoScene
       .cubic_to(0.53_f32, 0.95_f32, 0.75_f32, 1.02_f32, 0.88_f32, 0.82_f32)
       .cubic_to(1.0_f32, 0.6_f32, 0.85_f32, 0.35_f32, 0.5_f32, 0.05_f32)
     heart_shape = @atlas.add_path(heart)
-    add_shape(@instances, heart_shape, 916, 142, 180, rgba(0.88, 0.24, 0.34, 0.9), softness: 1.2_f32)
+    add_shape(@instances, heart_shape, 916, 142, 180, rgba(0.88, 0.24, 0.34, 0.9))
 
     @instances.concat text("nonzero", 842, 354, 16, rgb(0.70, 0.73, 0.79))
     @instances.concat text("even-odd", 1034, 354, 16, rgb(0.70, 0.73, 0.79))
@@ -84,18 +82,18 @@ class DemoScene
   end
 
   private def text(value : String, x : Int32, y : Int32, size : Int32, color : StaticArray(Float32, 4),
-                   dilation = 0.0_f32, softness = 0.0_f32, optical = false) : Array(Slug::Instance)
+                   dilation = 0.0_f32, optical = false) : Array(Slug::Instance)
     style = Slug::Style.new(
       transform: StaticArray[size.to_f32, 0.0_f32, 0.0_f32, size.to_f32, x.to_f32, y.to_f32],
-      color: color, optical_weight: optical, dilation: dilation, softness: softness)
+      color: color, optical_weight: optical, dilation: dilation)
     Slug.emit_text(@atlas, @font, style, value)
   end
 
   private def add_shape(instances : Array(Slug::Instance), shape : Slug::Shape, x : Int32, y : Int32, size : Int32,
-                        color : StaticArray(Float32, 4), softness = 0.0_f32) : Nil
+                        color : StaticArray(Float32, 4)) : Nil
     style = Slug::Style.new(
       transform: StaticArray[size.to_f32, 0.0_f32, 0.0_f32, size.to_f32, x.to_f32, y.to_f32],
-      color: color, softness: softness)
+      color: color)
     instances << Slug.emit_shape(style, shape).not_nil!
   end
 

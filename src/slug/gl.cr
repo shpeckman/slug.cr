@@ -342,7 +342,7 @@ module Slug
       # Draws instances using column-major object-to-clip matrix *mvp*.
       #
       # Viewport dimensions are in pixels and drive dynamic dilation. Instances
-      # with dilation or softness select the effects shader automatically.
+      # with dilation select the effects shader automatically.
       def draw(instances : Indexable(Instance), mvp : StaticArray(Float32, 16), viewport_width : Float32,
                viewport_height : Float32) : Nil
         ensure_open
@@ -619,7 +619,7 @@ module Slug
       end
 
       private def any_effects(instances : Indexable(Instance)) : Bool
-        instances.any? { |instance| instance.fx[0] != 0.0_f32 || instance.fx[1] > 0.0_f32 }
+        instances.any? { |instance| instance.dilation != 0.0_f32 }
       end
 
       private def draw_range(effects : Bool, buffer : UInt32, offset : Int32, first : Int32, count : Int32,
@@ -649,7 +649,7 @@ module Slug
         @uniform_4fv.call(program.viewport, 1_i32, viewport.to_unsafe)
         start = offset + first * INSTANCE_SIZE
         6.times do |i|
-          size = i == 5 ? 2_i32 : 4_i32
+          size = i == 5 ? 1_i32 : 4_i32
           @vertex_attrib_pointer.call(i.to_u32, size, 0x1406_u32, 0_u8, INSTANCE_SIZE.to_i32,
             Pointer(Void).new((start + i * 16).to_u64))
         end
