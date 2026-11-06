@@ -40,7 +40,7 @@ module Slug
     def glyph(glyph_id : UInt32, glyph : Glyph, px : Float32, py : Float32) : Nil
       placed = @m * Affine.new(1.0_f32, 0.0_f32, 0.0_f32, 1.0_f32, px, py)
       font = @font.not_nil!
-      unless @monochrome
+      unless @monochrome || font.metrics.color_format.none?
         color, layers = @atlas.not_nil!.color(font, glyph_id)
         layers.each do |layer|
           c = if layer.foreground?
@@ -80,12 +80,16 @@ module Slug
   # `Error` when the transform is singular, an effect is invalid, or the atlas
   # cannot supply a glyph.
   def self.emit_text(atlas : Atlas, font : Font, style : Style, text : String) : Array(Instance)
-    emit_text(atlas, font, style, text.to_slice)
+    emit_text(atlas, font, style, text.to_slice, text.size)
   end
 
   # :ditto:
   def self.emit_text(atlas : Atlas, font : Font, style : Style, text : Bytes) : Array(Instance)
-    emitter = Emitter.new(atlas, font, style, text.size)
+    emit_text(atlas, font, style, text, UTF8.count(text))
+  end
+
+  private def self.emit_text(atlas : Atlas, font : Font, style : Style, text : Bytes, capacity : Int) : Array(Instance)
+    emitter = Emitter.new(atlas, font, style, capacity)
     walk_text(atlas, font, text) do |glyph_id, glyph, x, y|
       emitter.glyph(glyph_id, glyph, x, y)
     end
@@ -121,9 +125,14 @@ module Slug
     bounds = StaticArray[0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32]
     ink = false
     layout = walk_text(atlas, font, text) do |glyph_id, glyph, x, y|
-      color, _ = atlas.color(font, glyph_id)
-      next if color.color? ? color.count == 0 : glyph.empty?
-      box = color.color? ? color.bounds : glyph.bounds
+      if font.metrics.color_format.none?
+        next if glyph.empty?
+        box = glyph.bounds
+      else
+        color, _ = atlas.color(font, glyph_id)
+        next if color.color? ? color.count == 0 : glyph.empty?
+        box = color.color? ? color.bounds : glyph.bounds
+      end
       if ink
         bounds[0] = Math.min(bounds[0], box[0] + x)
         bounds[1] = Math.min(bounds[1], box[1] + y)

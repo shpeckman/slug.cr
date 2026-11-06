@@ -328,7 +328,7 @@ module Slug
         next if codepoint == '\n'.ord
         glyph_id = LibFT.Slug_FT_Get_Char_Index(font.face.as(Void*), codepoint)
         glyph(font, glyph_id)
-        color(font, glyph_id)
+        color(font, glyph_id) unless font.metrics.color_format.none?
       end
     end
 

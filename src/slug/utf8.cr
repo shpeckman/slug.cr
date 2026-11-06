@@ -12,6 +12,16 @@ module Slug
 
     REPLACEMENT = 0xFFFD_u32
 
+    def count(bytes : Bytes) : Int32
+      count = 0
+      index = 0
+      while index < bytes.size
+        index = self.next(bytes, index)[1]
+        count += 1
+      end
+      count
+    end
+
     # *index* must be within *bytes*.
     def next(bytes : Bytes, index : Int32) : {UInt32, Int32}
       p = index

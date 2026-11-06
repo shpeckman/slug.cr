@@ -44,6 +44,7 @@ describe Slug::UTF8 do
         decoded << cp
       end
       decoded.should eq(expected), "case #{c}: #{decoded.map { |cp| "U+%04X" % cp }}"
+      Slug::UTF8.count(bytes).should eq(expected.size)
     end
   end
 end
