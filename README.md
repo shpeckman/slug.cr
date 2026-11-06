@@ -64,8 +64,17 @@ build/bench-core --workers 4
 build/bench-gl
 ```
 
-The core benchmark covers cold and batched atlas generation, warm emission, measurement and trimming. The GPU benchmark uses surfaceless EGL and covers initial, incremental and no-op atlas synchronization plus retained and streaming draws with plain and effects shaders. Draw samples call `glFinish` after the requested frames so GPU work is included.
+Or use the Makefile: `make build` builds both binaries, `make bench` runs the full suite, `make bench-core` and `make bench-gl` run one side, `make bench-ascii` runs the complex-font ASCII suite, and `make bench-gles` selects GLES. Set `BENCH_ARGS`, `CORE_ARGS`, `GL_ARGS`, `FONT` or `ASCII_FONT` to override workload options.
 
-Both binaries accept `--font PATH`, `--samples COUNT` and `--warmup COUNT`. The core binary also accepts `--workers COUNT`; the GPU binary accepts `--frames COUNT`, `--width PIXELS`, `--height PIXELS` and `--es`. Timing results include median, mean, p95, minimum, maximum and throughput.
+The core benchmark covers cold and batched atlas generation, warm emission, measurement and trimming, plus dense 100/500/1000/5000-glyph emission and measurement cases. The GPU benchmark uses surfaceless EGL and covers initial, incremental and no-op atlas synchronization plus retained and streaming draws with plain and effects shaders. It varies glyph counts at 16, 32 and 64 pixels, skipping combinations that exceed the viewport. Draw samples call `glFinish` after the requested frames so GPU work is included.
+
+Use `--ascii` with a complex font to establish an ASCII baseline without unsupported Unicode glyphs:
+
+```sh
+build/bench-core --ascii --font assets/SGr-IosevkaTermSlab-Regular.ttc
+build/bench-gl --ascii --font assets/SGr-IosevkaTermSlab-Regular.ttc
+```
+
+Both binaries accept `--font PATH`, `--ascii`, `--samples COUNT` and `--warmup COUNT`. The core binary also accepts `--workers COUNT`; the GPU binary accepts `--frames COUNT`, `--width PIXELS`, `--height PIXELS` and `--es`. Timing results include median, mean, p95, minimum, maximum and throughput.
 
 Reports also include GC allocation and collection counts per measured operation, atlas used/allocated bytes, instance payloads and Linux peak RSS. Draw operations cover all frames in one sample. The core report shows atlas usage before and after trimming. GPU reports cover requested texture, retained-buffer, streaming-frame and framebuffer payload sizes; they exclude driver overhead and do not measure actual VRAM usage. Memory collection stays outside timed regions.

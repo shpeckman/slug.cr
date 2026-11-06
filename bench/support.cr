@@ -13,6 +13,7 @@ module SlugBench
     property width = 1280
     property height = 720
     property es = false
+    property ascii = false
 
     def self.parse(gpu : Bool = false) : Options
       options = new
@@ -25,6 +26,7 @@ module SlugBench
         parser.on("--warmup COUNT", "Warmup iterations per case (default: #{options.warmup})") do |value|
           options.warmup = nonnegative(value, "--warmup")
         end
+        parser.on("--ascii", "Use printable ASCII instead of the Unicode workload") { options.ascii = true }
         unless gpu
           parser.on("--workers COUNT", "Atlas worker count (default: #{options.workers})") do |value|
             options.workers = positive(value, "--workers")
@@ -65,8 +67,12 @@ module SlugBench
   end
 
   module Workload
-    TEXT            = build_text
-    CHARACTER_COUNT = TEXT.each_char.count { |char| char != '\n' }
+    TEXT         = build_text
+    ASCII_TEXT   = build_ascii_text
+    DENSE_TEXT   = TEXT.each_char.reject(&.whitespace?).join
+    DENSE_ASCII  = ASCII_TEXT.each_char.reject(&.whitespace?).join
+    GLYPH_COUNTS = [100, 500, 1000, 5000]
+    SIZES        = [16, 32, 64]
 
     def self.build_text : String
       String.build do |output|
@@ -84,6 +90,38 @@ module SlugBench
           end
         end
         output << '\n' unless column == 0
+      end
+    end
+
+    def self.build_ascii_text : String
+      String.build do |output|
+        output << "Slug native Crystal: Sphinx of black quartz, judge my vow 0123456789.\n"
+        output << "GPU text directly from Bezier outlines; kerning, line breaks and effects.\n"
+        column = 0
+        (32..126).each do |codepoint|
+          output << codepoint.chr
+          column += 1
+          if column == 72
+            output << '\n'
+            column = 0
+          end
+        end
+        output << '\n' unless column == 0
+      end
+    end
+
+    def self.base_text(ascii : Bool) : String
+      ascii ? ASCII_TEXT : TEXT
+    end
+
+    def self.character_count(text : String) : Int32
+      text.each_char.count { |char| char != '\n' }
+    end
+
+    def self.dense_text(count : Int, ascii : Bool) : String
+      source = ascii ? DENSE_ASCII : DENSE_TEXT
+      String.build do |output|
+        count.times { |i| output << source[i % source.size] }
       end
     end
 
@@ -109,11 +147,11 @@ module SlugBench
     end
 
     def self.emit(atlas : Slug::Atlas, font : Slug::Font, width : Int32, height : Int32,
-                  effects : Bool = false) : Array(Slug::Instance)
+                  effects : Bool = false, text : String = TEXT) : Array(Slug::Instance)
       instances = [] of Slug::Instance
       size = Math.min(20, Math.max(8, width // 64))
       advance = size + 4
-      TEXT.lines.each_with_index do |line, row|
+      text.lines.each_with_index do |line, row|
         y = height - size - 8 - row * advance
         break if y < 0
         style = Slug::Style.new(
@@ -124,6 +162,32 @@ module SlugBench
         instances.concat Slug.emit_text(atlas, font, style, line)
       end
       instances
+    end
+
+    def self.grid_columns(width : Int32, size : Int32) : Int32
+      Math.max(1, ((width - 32).to_f32 / (size * 0.5_f32)).floor.to_i)
+    end
+
+    def self.grid_capacity(width : Int32, height : Int32, size : Int32) : Int32
+      rows = Math.max(1, (height - 8) // size)
+      grid_columns(width, size) * rows
+    end
+
+    def self.emit_grid(atlas : Slug::Atlas, font : Slug::Font, width : Int32, height : Int32,
+                       count : Int32, size : Int32, ascii : Bool, effects : Bool = false) : Array(Slug::Instance)
+      ids = glyph_ids(font, dense_text(count, ascii))
+      raise "font has no glyphs for selected workload" if ids.empty?
+      columns = grid_columns(width, size)
+      placements = Array(Slug::Placement).new(count)
+      count.times do |i|
+        placements << Slug::Placement.new(ids[i % ids.size], (i % columns).to_f32 * 0.5_f32, -(i // columns).to_f32)
+      end
+      style = Slug::Style.new(
+        transform: StaticArray[size.to_f32, 0.0_f32, 0.0_f32, size.to_f32, 16.0_f32, (height - size - 8).to_f32],
+        color: StaticArray[0.92_f32, 0.94_f32, 1.0_f32, 1.0_f32],
+        optical_weight: true,
+        dilation: effects ? 0.25_f32 : 0.0_f32)
+      Slug.emit_glyphs(atlas, font, style, placements)
     end
 
     def self.path : Slug::Path
@@ -181,14 +245,16 @@ module SlugBench
         format_bytes(before.allocated), format_bytes(after.allocated), glyphs_before, glyphs_after
     end
 
-    def self.gpu_buffers(plain_count : Int, effects_count : Int, width : Int, height : Int) : Nil
-      plain = plain_count.to_i64 * sizeof(Slug::Instance)
-      effects = effects_count.to_i64 * sizeof(Slug::Instance)
+    def self.gpu_buffers(plain_counts : Indexable(Int32), effects_counts : Indexable(Int32), width : Int, height : Int) : Nil
+      plain = plain_counts.sum.to_i64 * sizeof(Slug::Instance)
+      effects = effects_counts.sum.to_i64 * sizeof(Slug::Instance)
+      payloads = plain_counts.map { |count| count.to_i64 * sizeof(Slug::Instance) }
+      payloads.concat effects_counts.map { |count| count.to_i64 * sizeof(Slug::Instance) }
       framebuffer = width.to_i64 * height * 4
-      printf "%-26s plain %9s  effects %9s  total %9s\n",
-        "memory retained GPU", format_bytes(plain), format_bytes(effects), format_bytes(plain + effects)
-      printf "%-26s plain %9s/frame  effects %9s/frame\n",
-        "memory stream GPU", format_bytes(plain), format_bytes(effects)
+      printf "%-26s plain %9s  effects %9s  total %9s  (%d scenes)\n",
+        "memory retained GPU", format_bytes(plain), format_bytes(effects), format_bytes(plain + effects), plain_counts.size
+      printf "%-26s min %9s/frame  max %9s/frame\n",
+        "memory stream GPU", format_bytes(payloads.min), format_bytes(payloads.max)
       printf "%-26s %9s  (RGBA8)\n", "memory framebuffer", format_bytes(framebuffer)
     end
 

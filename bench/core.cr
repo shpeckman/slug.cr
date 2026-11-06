@@ -5,8 +5,9 @@ require "./support"
 options = SlugBench::Options.parse
 font = Slug::Font.open(options.font)
 begin
-  text = SlugBench::Workload::TEXT
-  glyph_ids = SlugBench::Workload.glyph_ids(font)
+  text = SlugBench::Workload.base_text(options.ascii)
+  character_count = SlugBench::Workload.character_count(text)
+  glyph_ids = SlugBench::Workload.glyph_ids(font, text)
   style = SlugBench::Workload.style
   warm_atlas = Slug::Atlas.new(Slug::AtlasDesc.new(initial_rows: 2_u32))
   warm_instances = Slug.emit_text(warm_atlas, font, style, text)
@@ -14,13 +15,13 @@ begin
   trim_atlas.add_text(font, text)
 
   puts "font: #{options.font}"
-  puts "workload: #{SlugBench::Workload::CHARACTER_COUNT} characters, #{glyph_ids.size} unique glyphs, #{warm_instances.size} instances"
+  puts "workload: #{options.ascii ? "ASCII" : "Unicode"}; #{character_count} characters, #{glyph_ids.size} unique glyphs, #{warm_instances.size} instances"
   puts "samples: #{options.samples}; warmup: #{options.warmup}; workers: #{options.workers}"
   SlugBench::Memory.atlas("warm atlas", warm_atlas)
   SlugBench::Memory.instances("warm instances", warm_instances.size)
 
   cold_atlas = warm_atlas
-  SlugBench.benchmark("cold emit", options, SlugBench::Workload::CHARACTER_COUNT, "glyphs/s") do
+  SlugBench.benchmark("cold emit", options, character_count, "glyphs/s") do
     cold_atlas = Slug::Atlas.new(Slug::AtlasDesc.new(initial_rows: 2_u32))
     Slug.emit_text(cold_atlas, font, style, text)
   end
@@ -33,12 +34,24 @@ begin
   end
   SlugBench::Memory.atlas("batch atlas", batch_atlas)
 
-  SlugBench.benchmark("warm emit", options, SlugBench::Workload::CHARACTER_COUNT, "glyphs/s") do
+  SlugBench.benchmark("warm emit", options, character_count, "glyphs/s") do
     Slug.emit_text(warm_atlas, font, style, text)
   end
 
-  SlugBench.benchmark("measure", options, SlugBench::Workload::CHARACTER_COUNT, "glyphs/s") do
+  SlugBench.benchmark("measure", options, character_count, "glyphs/s") do
     Slug.measure_text(warm_atlas, font, text)
+  end
+
+  SlugBench::Workload::GLYPH_COUNTS.each do |count|
+    dense_text = SlugBench::Workload.dense_text(count, options.ascii)
+    dense_instances = Slug.emit_text(warm_atlas, font, style, dense_text)
+    SlugBench::Memory.instances("dense #{count}", dense_instances.size)
+    SlugBench.benchmark("warm emit #{count}", options, count, "glyphs/s") do
+      Slug.emit_text(warm_atlas, font, style, dense_text)
+    end
+    SlugBench.benchmark("measure #{count}", options, count, "glyphs/s") do
+      Slug.measure_text(warm_atlas, font, dense_text)
+    end
   end
 
   trim_before = SlugBench::Memory.atlas_usage(trim_atlas)

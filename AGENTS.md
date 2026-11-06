@@ -32,6 +32,9 @@ devtool cr build bench/core.cr --release -o build/bench-core
 devtool cr build bench/gl.cr --release -o build/bench-gl
 build/bench-core --workers 4
 build/bench-gl
+make bench
+make bench-ascii
+make bench-gles
 ```
 
 Use `LIBGL_ALWAYS_SOFTWARE=1` for llvmpipe. EGL uses Mesa's surfaceless platform. GLFW needs a display. Inspect generated images after changing shaders or rendering code.
