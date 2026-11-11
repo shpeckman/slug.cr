@@ -4,11 +4,13 @@ module Slug
   # :nodoc:
   #
   # FreeType C bindings, LP64 ABI (FreeType >= 2.12 headers; `FT_Outline`
-  # point/contour counts are `unsigned short` there). Scope matches the
-  # port: face lifecycle, metrics, cmap/kerning, glyph load/render, outline
-  # decompose/embolden/CBox, SFNT OS/2, MM variations, CPAL palettes and
-  # COLRv0 layers. COLRv1 (FT_Get_Color_Glyph_Paint and friends) is
-  # deliberately absent. Internal to Slug modules; not public API.
+  # point/contour counts are `unsigned short` there). Scope: face lifecycle
+  # (file and memory), sizes (char, pixel, fixed strikes, extra size
+  # objects), transforms, metrics, cmap/kerning, glyph load/render/embolden,
+  # outline decompose/embolden/CBox/rasterize, SFNT OS/2, MM variations,
+  # CPAL palettes and COLRv0 layers. COLRv1 (FT_Get_Color_Glyph_Paint and
+  # friends) is deliberately absent. Shards that load faces themselves
+  # (asekii-app) use these bindings instead of their own.
   @[Link("freetype")]
   lib LibFT
     alias Bool = UInt8
@@ -25,13 +27,17 @@ module Slug
     alias F26Dot6 = LibC::Long
 
     alias Library = Void
-    alias Size = Void
     alias CharMap = Void
 
     # Face flags, bit mask on `FaceRec#face_flags`.
     FACE_FLAG_SCALABLE         = Long.new(1 << 0)
     FACE_FLAG_KERNING          = Long.new(1 << 6)
     FACE_FLAG_MULTIPLE_MASTERS = Long.new(1 << 8)
+    FACE_FLAG_COLOR            = Long.new(1 << 14)
+
+    # Style flags, bit mask on `FaceRec#style_flags`.
+    STYLE_FLAG_ITALIC = Long.new(1 << 0)
+    STYLE_FLAG_BOLD   = Long.new(1 << 1)
 
     # `FT_Load_Glyph` flags (FT_Int32).
     LOAD_DEFAULT        = 0
@@ -42,6 +48,8 @@ module Slug
     LOAD_FORCE_AUTOHINT = 1 << 5
     LOAD_TARGET_NORMAL  = 0 << 16
     LOAD_TARGET_LIGHT   = 1 << 16
+    LOAD_TARGET_MONO    = 2 << 16
+    LOAD_COLOR          = 1 << 20
     LOAD_NO_SVG         = 1 << 24
 
     # `FT_Get_Kerning` modes.
@@ -54,11 +62,13 @@ module Slug
     OUTLINE_EVEN_ODD_FILL = 0x2
 
     # `Bitmap#pixel_mode` values.
-    PIXEL_MODE_MONO = 1
-    PIXEL_MODE_GRAY = 2
+    PIXEL_MODE_MONO = 1_u8
+    PIXEL_MODE_GRAY = 2_u8
+    PIXEL_MODE_BGRA = 7_u8
 
     # Fourcc glyph formats; `GlyphSlotRec#format` is an `unsigned long` enum.
     GLYPH_FORMAT_OUTLINE = ULong.new(0x6F75746C) # 'outl'
+    GLYPH_FORMAT_BITMAP  = ULong.new(0x62697473) # 'bits'
 
     # SFNT table tag (FT_ULong), for `FT_Load_Sfnt_Table`.
     TAG_COLR = ULong.new(0x434F4C52) # 'COLR'
@@ -97,11 +107,44 @@ module Slug
       y : Pos
     end
 
+    struct Matrix
+      xx : Fixed
+      xy : Fixed
+      yx : Fixed
+      yy : Fixed
+    end
+
     struct BBox
       x_min : Pos
       y_min : Pos
       x_max : Pos
       y_max : Pos
+    end
+
+    struct BitmapSize
+      height : Short
+      width : Short
+      size : Pos
+      x_ppem : Pos
+      y_ppem : Pos
+    end
+
+    struct SizeMetrics
+      x_ppem : UShort
+      y_ppem : UShort
+      x_scale : Fixed
+      y_scale : Fixed
+      ascender : Pos
+      descender : Pos
+      height : Pos
+      max_advance : Pos
+    end
+
+    struct SizeRec
+      face : Void*
+      generic : Generic
+      metrics : SizeMetrics
+      internal : Void*
     end
 
     struct GlyphMetrics
@@ -180,7 +223,7 @@ module Slug
       family_name : UInt8*
       style_name : UInt8*
       num_fixed_sizes : Int
-      available_sizes : Void*
+      available_sizes : BitmapSize*
       num_charmaps : Int
       charmaps : Void*
       generic : Generic
@@ -194,7 +237,7 @@ module Slug
       underline_position : Short
       underline_thickness : Short
       glyph : GlyphSlotRec*
-      size : Size*
+      size : SizeRec*
       charmap : CharMap*
       driver : Void*
       memory : Void*
@@ -303,9 +346,15 @@ module Slug
 
     fun Slug_FT_Set_Char_Size = FT_Set_Char_Size(face : Void*, char_width : F26Dot6, char_height : F26Dot6, horz_resolution : UInt, vert_resolution : UInt) : Error
     fun Slug_FT_Set_Pixel_Sizes = FT_Set_Pixel_Sizes(face : Face*, pixel_width : UInt, pixel_height : UInt) : Error
+    fun Slug_FT_Select_Size = FT_Select_Size(face : Void*, strike_index : Int) : Error
+    fun Slug_FT_New_Size = FT_New_Size(face : Void*, size : SizeRec**) : Error
+    fun Slug_FT_Activate_Size = FT_Activate_Size(size : SizeRec*) : Error
+    fun Slug_FT_Done_Size = FT_Done_Size(size : SizeRec*) : Error
+    fun Slug_FT_Set_Transform = FT_Set_Transform(face : Void*, matrix : Matrix*, delta : Vector*) : Void
 
     fun Slug_FT_Load_Glyph = FT_Load_Glyph(face : Void*, glyph_index : UInt, load_flags : Int32) : Error
     fun Slug_FT_Render_Glyph = FT_Render_Glyph(slot : Void*, render_mode : Int32) : Error
+    fun Slug_FT_GlyphSlot_Embolden = FT_GlyphSlot_Embolden(slot : Void*) : Void
 
     fun Slug_FT_Get_Char_Index = FT_Get_Char_Index(face : Void*, charcode : ULong) : UInt
     fun Slug_FT_Get_First_Char = FT_Get_First_Char(face : Face*, agindex : UInt*) : ULong
@@ -318,6 +367,7 @@ module Slug
     fun Slug_FT_Outline_Decompose = FT_Outline_Decompose(outline : Outline*, func_interface : OutlineFuncs*, user : Void*) : Error
     fun Slug_FT_Outline_Get_CBox = FT_Outline_Get_CBox(outline : Outline*, acbox : BBox*) : Void
     fun Slug_FT_Outline_EmboldenXY = FT_Outline_EmboldenXY(outline : Void*, xstrength : Pos, ystrength : Pos) : Error
+    fun Slug_FT_Outline_Get_Bitmap = FT_Outline_Get_Bitmap(library : Library*, outline : Outline*, abitmap : Bitmap*) : Error
 
     fun Slug_FT_Get_MM_Var = FT_Get_MM_Var(face : Void*, amaster : Void*) : Error
     fun Slug_FT_Done_MM_Var = FT_Done_MM_Var(library : Library*, amaster : Void*) : Error

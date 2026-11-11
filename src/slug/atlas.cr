@@ -332,16 +332,16 @@ module Slug
       end
     end
 
-    # Stores a path's fill in the atlas. Paths are not cached by identity:
-    # call once and keep the shape.
+    # Stores a path's fill in the atlas, grown by *embolden* path units.
+    # Paths are not cached by identity: call once and keep the shape.
     #
     # Raises `Error` with `Result::Frozen` in a frozen atlas; an empty path
     # yields an empty shape.
-    def add_path(path : Path, fill : FillRule = :nonzero) : Shape
+    def add_path(path : Path, fill : FillRule = :nonzero, embolden : Float32 = 0.0_f32) : Shape
       raise Error.new(Result::Frozen) if @frozen
 
       job = @scratch
-      result, origin, scale = job.outline.from_path(path, fill)
+      result, origin, scale = job.outline.from_path(path, fill, embolden)
       job.result = result
       job.empty = result.unsupported?
       job.result = Result::Ok if job.empty
@@ -504,8 +504,7 @@ module Slug
     # monochrome glyphs; a color glyph with zero layers (fully transparent)
     # draws nothing. Used by emission and by `#add_text` / `#add_glyphs`.
     def color(font : Font, glyph_id : UInt32) : {ColorGlyph, Array(ColorLayer)}
-      empty = {ColorGlyph.new, [] of ColorLayer}
-      return empty if font.metrics.color_format.none? || glyph_id > 0xFFFF_u32
+      return {ColorGlyph.new, [] of ColorLayer} if font.metrics.color_format.none? || glyph_id > 0xFFFF_u32
 
       key = color_key(font, glyph_id)
       slot = @color_table.get(key)
@@ -515,7 +514,7 @@ module Slug
           @collected.clear
           Slug.check(Color.build(self, font, glyph_id, nil, @collected))
           raise Error.new(Result::Frozen) unless @collected.empty?
-          return empty
+          return {ColorGlyph.new, [] of ColorLayer}
         end
         list = @scratch_layers
         list.clear

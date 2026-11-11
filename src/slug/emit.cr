@@ -85,7 +85,7 @@ module Slug
 
   # :ditto:
   def self.emit_text(atlas : Atlas, font : Font, style : Style, text : Bytes) : Array(Instance)
-    emit_text(atlas, font, style, text, UTF8.count(text))
+    emit_text(atlas, font, style, text, text.size)
   end
 
   private def self.emit_text(atlas : Atlas, font : Font, style : Style, text : Bytes, capacity : Int) : Array(Instance)

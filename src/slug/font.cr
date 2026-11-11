@@ -89,6 +89,25 @@ module Slug
       setup
     end
 
+    # :nodoc:
+    #
+    # Wraps FreeType *face* like `.new` but takes ownership: `#close`
+    # releases it, and so does a failure to wrap it.
+    def self.adopt(face : LibFT::Face*) : Font
+      font = begin
+        new(face)
+      rescue ex
+        LibFT.Slug_FT_Done_Face(face.as(Void*))
+        raise ex
+      end
+      font.own
+      font
+    end
+
+    protected def own : Nil
+      @owns_face = true
+    end
+
     private def initialize(face : LibFT::Face*, library : LibFT::Library*)
       @face = face
       @library = library

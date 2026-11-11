@@ -157,8 +157,9 @@ module Slug
     # normalized origin (path bounds minimum) and the path units per
     # normalized unit. Expects the `Path` :nodoc: storage mirroring the C
     # SlugPath: `point_count`/`contour_count`, flat `xy` pairs, FreeType `tags`
-    # bytes and contour `ends` indices.
-    def from_path(path : Path, fill : FillRule) : {Result, StaticArray(Float32, 2), Float32}
+    # bytes and contour `ends` indices. A positive *embolden* grows the
+    # outline by that many path units, like a font's `OutlineStyle#embolden`.
+    def from_path(path : Path, fill : FillRule, embolden : Float32 = 0.0_f32) : {Result, StaticArray(Float32, 2), Float32}
       origin = StaticArray[0.0_f32, 0.0_f32]
       scale = 1.0_f32
       @n_points = 0
@@ -207,6 +208,12 @@ module Slug
       @n_contours = contours
       @source_flags = fill.even_odd? ? LibFT::OUTLINE_EVEN_ODD_FILL : 0
       @even_odd = fill.even_odd?
+      if embolden > 0.0_f32
+        src = LibFT::Outline.new(n_contours: contours.to_u16, n_points: points.to_u16, points: @points.to_unsafe,
+          tags: @tags.to_unsafe, contours: @contours.to_unsafe, flags: @source_flags)
+        strength = (embolden * inv).round(mode: :ties_away).to_i64
+        return {Result::FreeType, origin, scale} unless LibFT.Slug_FT_Outline_EmboldenXY(pointerof(src).as(Void*), strength, strength) == 0
+      end
       origin = StaticArray[lo_x, lo_y]
       {Result::Ok, origin, extent}
     end

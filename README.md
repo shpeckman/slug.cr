@@ -22,7 +22,7 @@ metrics = Slug.measure_text(atlas, font, "Hello")
 # Later: font.close
 ```
 
-Use `Slug.emit_glyphs` with `Slug::Placement` for HarfBuzz-style shaping. `Slug.emit_shape` emits a path stored with `Slug::Atlas#add_path`.
+Use `Slug.emit_glyphs` with `Slug::Placement` for HarfBuzz-style shaping. `Slug.emit_shape` emits a path stored with `Slug::Atlas#add_path`, which can grow it by *embolden* path units.
 
 ## OpenGL
 

@@ -80,4 +80,15 @@ describe Slug do
     instance.dilation.should eq(1.0_f32)
     instance.rect[2].should be > instance.rect[0]
   end
+
+  it "grows emboldened paths" do
+    path = Slug::Path.new
+    path.move_to(0.0_f32, 0.0_f32).line_to(10.0_f32, 0.0_f32).line_to(10.0_f32, 10.0_f32).line_to(0.0_f32, 10.0_f32)
+    plain = Slug.emit_shape(Slug::Style.new, atlas.add_path(path)).not_nil!
+    bold = Slug.emit_shape(Slug::Style.new, atlas.add_path(path, embolden: 2.0_f32)).not_nil!
+    width = ->(i : Slug::Instance) { (i.rect[2] - i.rect[0]) * i.xform[0] }
+    width.call(plain).should be_close(10.0_f32, 0.01)
+    width.call(bold).should be_close(12.0_f32, 0.01)
+    ((bold.rect[3] - bold.rect[1]) * bold.xform[3].abs).should be_close(12.0_f32, 0.01)
+  end
 end
