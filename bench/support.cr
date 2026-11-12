@@ -12,7 +12,6 @@ module SlugBench
     property frames = 30
     property width = 1280
     property height = 720
-    property es = false
     property ascii = false
 
     def self.parse(gpu : Bool = false) : Options
@@ -42,7 +41,6 @@ module SlugBench
           parser.on("--height PIXELS", "Viewport height (default: #{options.height})") do |value|
             options.height = positive(value, "--height")
           end
-          parser.on("--es", "Use OpenGL ES instead of desktop OpenGL") { options.es = true }
         end
         parser.on("-h", "--help", "Show this help") do
           puts parser

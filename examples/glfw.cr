@@ -19,20 +19,13 @@ end
 class DemoGLFW
   getter window = Pointer(Void).null
 
-  def initialize(@es : Bool, width : Int32, height : Int32)
+  def initialize(width : Int32, height : Int32)
     raise "GLFW: initialization failed" if LibGLFW.glfwInit == 0
-    if @es
-      LibGLFW.glfwWindowHint(0x00022001_i32, 0x00030002_i32)
-      LibGLFW.glfwWindowHint(0x00022002_i32, 3_i32)
-      LibGLFW.glfwWindowHint(0x00022003_i32, 0_i32)
-    else
-      LibGLFW.glfwWindowHint(0x00022001_i32, 0x00030001_i32)
-      LibGLFW.glfwWindowHint(0x00022002_i32, 4_i32)
-      LibGLFW.glfwWindowHint(0x00022003_i32, 3_i32)
-      LibGLFW.glfwWindowHint(0x00022008_i32, 0x00032001_i32)
-    end
-    title = @es ? "Slug - OpenGL ES" : "Slug - OpenGL"
-    @window = LibGLFW.glfwCreateWindow(width, height, title, Pointer(Void).null, Pointer(Void).null)
+    LibGLFW.glfwWindowHint(0x00022001_i32, 0x00030001_i32)
+    LibGLFW.glfwWindowHint(0x00022002_i32, 4_i32)
+    LibGLFW.glfwWindowHint(0x00022003_i32, 3_i32)
+    LibGLFW.glfwWindowHint(0x00022008_i32, 0x00032001_i32)
+    @window = LibGLFW.glfwCreateWindow(width, height, "Slug - OpenGL", Pointer(Void).null, Pointer(Void).null)
     if @window.null?
       LibGLFW.glfwTerminate
       raise "GLFW: window creation failed"

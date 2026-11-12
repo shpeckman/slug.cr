@@ -47,7 +47,7 @@ class DemoScene
     @instances.concat text("nonzero", 842, 354, 16, rgb(0.70, 0.73, 0.79))
     @instances.concat text("even-odd", 1034, 354, 16, rgb(0.70, 0.73, 0.79))
     @instances.concat text("Vector paths · quadratic and cubic curves · fill rules · effects", 48, 72, 17, rgb(0.48, 0.58, 0.70))
-    @instances.concat text("OpenGL 4.3 / GLES 3.0 · no C Slug linkage", 48, 40, 14, rgb(0.38, 0.46, 0.56))
+    @instances.concat text("OpenGL 4.3 · no C Slug linkage", 48, 40, 14, rgb(0.38, 0.46, 0.56))
 
     metrics = Slug.measure_text(@atlas, @font, "Sphinx of black quartz, judge my vow 0123456789")
     puts "font: #{font_path}"
@@ -123,7 +123,6 @@ module Demo
   end
 end
 
-es = false
 use_glfw = false
 interactive = false
 streamed = false
@@ -132,8 +131,6 @@ font = "assets/unifont.ttf"
 index = 0
 while index < ARGV.size
   case ARGV[index]
-  when "--es"
-    es = true
   when "--glfw"
     use_glfw = true
   when "--interactive"
@@ -154,7 +151,7 @@ raise "--interactive requires --glfw" if interactive && !use_glfw
 width = 1280
 height = 720
 if use_glfw
-  window = DemoGLFW.new(es, width, height)
+  window = DemoGLFW.new(width, height)
   begin
     renderer = Slug::GL::Renderer.new { |name| window.get_proc(name) }
     frame = DemoFrame.new(->window.get_proc(UInt8*), width, height, false)
@@ -182,7 +179,7 @@ if use_glfw
     window.close
   end
 else
-  egl = DemoEGL.new(es)
+  egl = DemoEGL.new
   begin
     renderer = Slug::GL::Renderer.new { |name| egl.get_proc(name) }
     frame = DemoFrame.new(->egl.get_proc(UInt8*), width, height, true)

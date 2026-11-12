@@ -7,8 +7,13 @@ authors:
 
 description: |
   Slug - GPU text from glyph outlines: fonts, an atlas of curves and bands,
-  instances, and an OpenGL 4.3 / GLES 3.0 renderer. Native Crystal port of
+  instances, and an OpenGL 4.3 renderer. Native Crystal port of
   the C library: monochrome and COLRv0/CPAL color glyphs, no C linkage.
+
+dependencies:
+  crwin:
+    github: shpeckman/crwin
+    branch: main
 
 crystal: ">= 1.22.0"
 

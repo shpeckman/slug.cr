@@ -1,9 +1,10 @@
 # src/slug/gl.cr
 
+require "crwin/gl/slang"
 require "../slug"
 
 module Slug
-  # OpenGL 4.3 core and OpenGL ES 3.0+ rendering of Slug instances.
+  # OpenGL 4.3 core rendering of Slug instances.
   module GL
     # Returns the address of an OpenGL entry point.
     alias GetProc = UInt8* -> Void*
@@ -21,7 +22,6 @@ module Slug
     # GPU renderer for one current OpenGL context and one synced atlas at a time.
     class Renderer
       private alias GetIntegerv = Proc(UInt32, Int32*, Nil)
-      private alias GetString = Proc(UInt32, UInt8*)
       private alias GetStringi = Proc(UInt32, UInt32, UInt8*)
       private alias GenTextures = Proc(Int32, UInt32*, Nil)
       private alias DeleteTextures = Proc(Int32, UInt32*, Nil)
@@ -44,15 +44,13 @@ module Slug
       private alias GetProgramInfoLog = Proc(UInt32, Int32, Int32*, UInt8*, Nil)
       private alias DeleteProgram = Proc(UInt32, Nil)
       private alias UseProgram = Proc(UInt32, Nil)
-      private alias GetUniformLocation = Proc(UInt32, UInt8*, Int32)
-      private alias Uniform4fv = Proc(Int32, Int32, Float32*, Nil)
-      private alias Uniform1i = Proc(Int32, Int32, Nil)
       private alias GenVertexArrays = Proc(Int32, UInt32*, Nil)
       private alias DeleteVertexArrays = Proc(Int32, UInt32*, Nil)
       private alias BindVertexArray = Proc(UInt32, Nil)
       private alias GenBuffers = Proc(Int32, UInt32*, Nil)
       private alias DeleteBuffers = Proc(Int32, UInt32*, Nil)
       private alias BindBuffer = Proc(UInt32, UInt32, Nil)
+      private alias BindBufferBase = Proc(UInt32, UInt32, UInt32, Nil)
       private alias BufferData = Proc(UInt32, Int64, Void*, UInt32, Nil)
       private alias MapBufferRange = Proc(UInt32, Int64, Int64, UInt32, Void*)
       private alias VertexAttribPointer = Proc(UInt32, Int32, UInt32, UInt8, Int32, Void*, Nil)
@@ -83,7 +81,6 @@ module Slug
       private UNSIGNED_SHORT             = 0x1403_u32
       private HALF_FLOAT                 = 0x140B_u32
       private RGBA                       = 0x1908_u32
-      private VERSION                    = 0x1F02_u32
       private EXTENSIONS                 = 0x1F03_u32
       private NEAREST                    = 0x2600_i32
       private FUNC_ADD                   = 0x8006_u32
@@ -107,6 +104,7 @@ module Slug
       private VERTEX_SHADER              = 0x8B31_u32
       private COMPILE_STATUS             = 0x8B81_u32
       private LINK_STATUS                = 0x8B82_u32
+      private UNIFORM_BUFFER             = 0x8A11_u32
       private SYNC_GPU_COMMANDS_COMPLETE = 0x9117_u32
       private TIMEOUT_EXPIRED            = 0x911B_u32
       private WAIT_FAILED                = 0x911D_u32
@@ -120,19 +118,17 @@ module Slug
       private STREAM_DRAWS_IN_FLIGHT =                 4
       private FENCE_TIMEOUT_NS       = 1_000_000_000_u64
       private INSTANCE_SIZE          = sizeof(Slug::Instance)
+      private PARAMS_BINDING         = 2_u32
 
-      private VERT_GL         = {{ read_file("#{__DIR__}/../../shaders/prelude_gl.glsl") + read_file("#{__DIR__}/../../shaders/slug.vert.glsl") }}
-      private VERT_ES         = {{ read_file("#{__DIR__}/../../shaders/prelude_es.glsl") + read_file("#{__DIR__}/../../shaders/slug.vert.glsl") }}
-      private FRAG_GL         = {{ read_file("#{__DIR__}/../../shaders/prelude_gl.glsl") + read_file("#{__DIR__}/../../shaders/slug.frag.glsl") }}
-      private FRAG_ES         = {{ read_file("#{__DIR__}/../../shaders/prelude_es.glsl") + read_file("#{__DIR__}/../../shaders/slug.frag.glsl") }}
-      private FRAG_GL_EFFECTS = {{ read_file("#{__DIR__}/../../shaders/prelude_gl.glsl") + read_file("#{__DIR__}/../../shaders/effects.glsl") + read_file("#{__DIR__}/../../shaders/slug.frag.glsl") }}
-      private FRAG_ES_EFFECTS = {{ read_file("#{__DIR__}/../../shaders/prelude_es.glsl") + read_file("#{__DIR__}/../../shaders/effects.glsl") + read_file("#{__DIR__}/../../shaders/slug.frag.glsl") }}
+      private VERTEX           = CrWin::GL.slang("../../shaders/slug.slang", "vertex_main")
+      private FRAGMENT         = CrWin::GL.slang("../../shaders/slug.slang", "fragment_main")
+      private FRAGMENT_EFFECTS = CrWin::GL.slang("../../shaders/slug.slang", "fragment_effects")
 
-      # :nodoc:
-      struct Program
-        property name = 0_u32
-        property matrix = -1_i32
-        property viewport = -1_i32
+      # Per-draw uniform block of slug.slang (std140).
+      @[Extern]
+      private struct Params
+        property matrix = StaticArray(Float32, 16).new(0.0_f32)
+        property viewport = StaticArray(Float32, 4).new(0.0_f32)
       end
 
       # :nodoc:
@@ -170,7 +166,6 @@ module Slug
       end
 
       declare get_integerv, GetIntegerv
-      declare get_string, GetString
       declare get_stringi, GetStringi
       declare gen_textures, GenTextures
       declare delete_textures, DeleteTextures
@@ -193,15 +188,13 @@ module Slug
       declare get_program_info_log, GetProgramInfoLog
       declare delete_program, DeleteProgram
       declare use_program, UseProgram
-      declare get_uniform_location, GetUniformLocation
-      declare uniform_4fv, Uniform4fv
-      declare uniform_1i, Uniform1i
       declare gen_vertex_arrays, GenVertexArrays
       declare delete_vertex_arrays, DeleteVertexArrays
       declare bind_vertex_array, BindVertexArray
       declare gen_buffers, GenBuffers
       declare delete_buffers, DeleteBuffers
       declare bind_buffer, BindBuffer
+      declare bind_buffer_base, BindBufferBase
       declare buffer_data, BufferData
       declare map_buffer_range, MapBufferRange
       declare vertex_attrib_pointer, VertexAttribPointer
@@ -218,22 +211,21 @@ module Slug
 
       @copy_image : CopyImageSubData? = nil
       @buffer_storage : BufferStorage? = nil
-      @programs = [Program.new, Program.new]
+      @programs = StaticArray(UInt32, 2).new(0_u32)
+      @params = 0_u32
       @textures = [Texture.new, Texture.new]
       @stream = Stream.new
       @vao = 0_u32
       @atlas_id = 0_u64
-      @es = false
       @max_texture_size = 0_i32
       @closed = false
 
       # Creates a renderer for the current context using *get_proc*.
       #
-      # Raises `Error` with `Result::Unsupported` below GL 4.3 or GLES 3.0,
+      # Raises `Error` with `Result::Unsupported` below OpenGL 4.3 core,
       # and with `Result::Backend` when shader compilation fails.
       def initialize(get_proc : GetProc)
         load @get_integerv, "glGetIntegerv", GetIntegerv
-        load @get_string, "glGetString", GetString
         load @get_stringi, "glGetStringi", GetStringi
         load @gen_textures, "glGenTextures", GenTextures
         load @delete_textures, "glDeleteTextures", DeleteTextures
@@ -256,15 +248,13 @@ module Slug
         load @get_program_info_log, "glGetProgramInfoLog", GetProgramInfoLog
         load @delete_program, "glDeleteProgram", DeleteProgram
         load @use_program, "glUseProgram", UseProgram
-        load @get_uniform_location, "glGetUniformLocation", GetUniformLocation
-        load @uniform_4fv, "glUniform4fv", Uniform4fv
-        load @uniform_1i, "glUniform1i", Uniform1i
         load @gen_vertex_arrays, "glGenVertexArrays", GenVertexArrays
         load @delete_vertex_arrays, "glDeleteVertexArrays", DeleteVertexArrays
         load @bind_vertex_array, "glBindVertexArray", BindVertexArray
         load @gen_buffers, "glGenBuffers", GenBuffers
         load @delete_buffers, "glDeleteBuffers", DeleteBuffers
         load @bind_buffer, "glBindBuffer", BindBuffer
+        load @bind_buffer_base, "glBindBufferBase", BindBufferBase
         load @buffer_data, "glBufferData", BufferData
         load @map_buffer_range, "glMapBufferRange", MapBufferRange
         load @vertex_attrib_pointer, "glVertexAttribPointer", VertexAttribPointer
@@ -279,16 +269,14 @@ module Slug
         load @blend_func, "glBlendFunc", BlendFunc
         load @blend_equation, "glBlendEquation", BlendEquation
 
-        version = @get_string.call(VERSION)
-        @es = !version.null? && String.new(version).includes?("OpenGL ES")
         major = 0_i32
         minor = 0_i32
         @get_integerv.call(MAJOR_VERSION, pointerof(major))
         @get_integerv.call(MINOR_VERSION, pointerof(minor))
         @get_integerv.call(MAX_TEXTURE_SIZE, pointerof(@max_texture_size))
-        supported = @es ? major >= 3 : major > 4 || major == 4 && minor >= 3
+        supported = major > 4 || major == 4 && minor >= 3
         unless supported && @max_texture_size >= TEXTURE_WIDTH
-          raise Error.new(Result::Unsupported, "Slug needs OpenGL 4.3 or OpenGL ES 3.0 and #{TEXTURE_WIDTH}-texel textures")
+          raise Error.new(Result::Unsupported, "Slug needs OpenGL 4.3 and #{TEXTURE_WIDTH}-texel textures")
         end
         load_optional(get_proc, major, minor)
         begin
@@ -303,11 +291,6 @@ module Slug
       # Creates a renderer with a loader block receiving C entry-point names.
       def self.new(&get_proc : GetProc) : Renderer
         new(get_proc)
-      end
-
-      # Returns whether the current context is OpenGL ES.
-      def es? : Bool
-        @es
       end
 
       # Returns whether streamed draws use persistent coherent buffer mapping.
@@ -430,10 +413,11 @@ module Slug
           @delete_vertex_arrays.call(1, pointerof(@vao))
           @vao = 0_u32
         end
-        @programs.each do |program|
-          next if program.name == 0
-          @delete_program.call(program.name)
-          program.name = 0_u32
+        @programs.each { |program| @delete_program.call(program) unless program == 0 }
+        @programs = StaticArray(UInt32, 2).new(0_u32)
+        if @params != 0
+          @delete_buffers.call(1, pointerof(@params))
+          @params = 0_u32
         end
         @closed = true
       end
@@ -479,25 +463,10 @@ module Slug
       end
 
       private def load_optional(get_proc : GetProc, major : Int32, minor : Int32) : Nil
-        copy = if !@es || major > 3 || major == 3 && minor >= 2
-                 "glCopyImageSubData"
-               elsif has_extension("GL_EXT_copy_image")
-                 "glCopyImageSubDataEXT"
-               elsif has_extension("GL_OES_copy_image")
-                 "glCopyImageSubDataOES"
-               else
-                 nil
-               end
-        @copy_image = optional(CopyImageSubData, get_proc, copy) if copy
-
-        storage = if !@es && (major > 4 || major == 4 && minor >= 4 || has_extension("GL_ARB_buffer_storage"))
-                    "glBufferStorage"
-                  elsif @es && has_extension("GL_EXT_buffer_storage")
-                    "glBufferStorageEXT"
-                  else
-                    nil
-                  end
-        @buffer_storage = optional(BufferStorage, get_proc, storage) if storage
+        @copy_image = optional(CopyImageSubData, get_proc, "glCopyImageSubData")
+        if major > 4 || major == 4 && minor >= 4 || has_extension("GL_ARB_buffer_storage")
+          @buffer_storage = optional(BufferStorage, get_proc, "glBufferStorage")
+        end
       end
 
       private def compile(stage : UInt32, source : String) : UInt32
@@ -518,42 +487,29 @@ module Slug
       end
 
       private def build_program(variant : Int32) : Nil
-        vertex = compile(VERTEX_SHADER, @es ? VERT_ES : VERT_GL)
-        fragment_source = case {variant, @es}
-                          when {0, false} then FRAG_GL
-                          when {0, true}  then FRAG_ES
-                          when {1, false} then FRAG_GL_EFFECTS
-                          else                 FRAG_ES_EFFECTS
-                          end
+        vertex = compile(VERTEX_SHADER, VERTEX)
         begin
-          fragment = compile(FRAGMENT_SHADER, fragment_source)
+          fragment = compile(FRAGMENT_SHADER, variant == 0 ? FRAGMENT : FRAGMENT_EFFECTS)
         rescue ex
           @delete_shader.call(vertex)
           raise ex
         end
 
-        program = Program.new
-        program.name = @create_program.call
-        @attach_shader.call(program.name, vertex)
-        @attach_shader.call(program.name, fragment)
-        @link_program.call(program.name)
+        program = @create_program.call
+        @attach_shader.call(program, vertex)
+        @attach_shader.call(program, fragment)
+        @link_program.call(program)
         @delete_shader.call(vertex)
         @delete_shader.call(fragment)
         ok = 0_i32
-        @get_programiv.call(program.name, LINK_STATUS, pointerof(ok))
+        @get_programiv.call(program, LINK_STATUS, pointerof(ok))
         if ok == 0
           log = Bytes.new(4096)
-          @get_program_info_log.call(program.name, log.size, Pointer(Int32).null, log.to_unsafe)
+          @get_program_info_log.call(program, log.size, Pointer(Int32).null, log.to_unsafe)
           @error = "link: #{String.new(log.to_unsafe)}"
-          @delete_program.call(program.name)
+          @delete_program.call(program)
           raise Error.new(Result::Backend, @error)
         end
-        program.matrix = @get_uniform_location.call(program.name, "slug_matrix".to_unsafe)
-        program.viewport = @get_uniform_location.call(program.name, "slug_viewport".to_unsafe)
-        @use_program.call(program.name)
-        @uniform_1i.call(@get_uniform_location.call(program.name, "slug_curve".to_unsafe), 0_i32)
-        @uniform_1i.call(@get_uniform_location.call(program.name, "slug_band".to_unsafe), 1_i32)
-        @use_program.call(0_u32)
         @programs[variant] = program
       end
 
@@ -625,13 +581,14 @@ module Slug
       private def draw_range(effects : Bool, buffer : UInt32, offset : Int32, first : Int32, count : Int32,
                              mvp : StaticArray(Float32, 16), viewport_width : Float32, viewport_height : Float32) : Nil
         variant = effects ? 1 : 0
-        build_program(variant) if @programs[variant].name == 0
-        program = @programs[variant]
-        rows = StaticArray(Float32, 16).new(0.0_f32)
-        4.times do |row|
-          4.times { |column| rows[row * 4 + column] = mvp[column * 4 + row] }
-        end
-        viewport = StaticArray[viewport_width, viewport_height, 0.0_f32, 0.0_f32]
+        build_program(variant) if @programs[variant] == 0
+        params = Params.new
+        params.matrix = StaticArray(Float32, 16).new { |i| mvp[(i & 3) * 4 + (i >> 2)] }
+        params.viewport = StaticArray[viewport_width, viewport_height, 0.0_f32, 0.0_f32]
+        @gen_buffers.call(1, pointerof(@params)) if @params == 0
+        @bind_buffer.call(UNIFORM_BUFFER, @params)
+        @buffer_data.call(UNIFORM_BUFFER, sizeof(Params).to_i64, pointerof(params).as(Void*), STREAM_DRAW)
+        @bind_buffer_base.call(UNIFORM_BUFFER, PARAMS_BINDING, @params)
 
         @active_texture.call(TEXTURE0)
         @bind_texture.call(TEXTURE_2D, @textures[0].name)
@@ -644,9 +601,7 @@ module Slug
         @disable.call(CULL_FACE)
         @blend_equation.call(FUNC_ADD)
         @blend_func.call(ONE, ONE_MINUS_SRC_ALPHA)
-        @use_program.call(program.name)
-        @uniform_4fv.call(program.matrix, 4_i32, rows.to_unsafe)
-        @uniform_4fv.call(program.viewport, 1_i32, viewport.to_unsafe)
+        @use_program.call(@programs[variant])
         start = offset + first * INSTANCE_SIZE
         6.times do |i|
           size = i == 5 ? 1_i32 : 4_i32

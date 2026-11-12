@@ -11,9 +11,9 @@ GL_ARGS ?=
 CORE_BIN := $(BUILD_DIR)/bench-core
 GL_BIN := $(BUILD_DIR)/bench-gl
 CORE_SOURCES := src/slug.cr $(wildcard src/slug/*.cr)
-GL_SOURCES := $(CORE_SOURCES) examples/egl.cr examples/frame.cr $(wildcard shaders/*.glsl)
+GL_SOURCES := $(CORE_SOURCES) examples/egl.cr examples/frame.cr $(wildcard shaders/*.slang)
 
-.PHONY: all build bench bench-core bench-gl bench-ascii bench-gles
+.PHONY: all build bench bench-core bench-gl bench-ascii
 
 all: bench
 
@@ -32,9 +32,6 @@ bench-gl: $(GL_BIN)
 bench-ascii: build
 	$(CORE_BIN) --ascii --font "$(ASCII_FONT)" $(BENCH_ARGS) $(CORE_ARGS)
 	$(GL_BIN) --ascii --font "$(ASCII_FONT)" $(BENCH_ARGS) $(GL_ARGS)
-
-bench-gles: $(GL_BIN)
-	$(GL_BIN) --es --font "$(FONT)" $(BENCH_ARGS) $(GL_ARGS)
 
 $(CORE_BIN): bench/core.cr bench/support.cr $(CORE_SOURCES) | $(BUILD_DIR)/
 	$(CRYSTAL) build $< --release -o $@

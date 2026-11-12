@@ -9,8 +9,8 @@ Native Crystal Slug port. Core uses FreeType directly; no C Slug linkage. `src/s
 - `src/slug/bands.cr`: band selection and sorted curve references.
 - `src/slug/atlas.cr`: curve/band planes, glyph and COLRv0 caches, paths, trimming.
 - `src/slug/emit.cr`: shared text layout, instance emission and measurement.
-- `src/slug/gl.cr`: dynamically loaded GL/GLES renderer, streaming and retained batches.
-- `shaders/`: GL/GLES preludes, vertex shader, fragment shader and effects define.
+- `src/slug/gl.cr`: dynamically loaded OpenGL 4.3 core renderer, streaming and retained batches.
+- `shaders/`: Slang modules: `curves.slang` (atlas access, roots, reference coverage), `effects.slang` (dilation), `slug.slang` (entry points `vertex_main`, `fragment_main`, `fragment_effects`).
 - `examples/`: visual demo with surfaceless EGL or GLFW and PPM readback.
 - `bench/`: release-mode core and EGL renderer benchmarks with shared timing, allocation and memory statistics.
 - `spec/`: Crystal specs.
@@ -24,7 +24,6 @@ devtool cr check src/slug.cr
 devtool cr check src/slug/gl.cr
 devtool cr docs
 devtool cr run examples/demo.cr
-devtool cr run examples/demo.cr -- --es --output build/demo-es.ppm
 devtool cr run examples/demo.cr -- --glfw --output build/demo-glfw.ppm
 devtool cr run examples/demo.cr -- --stream --output build/demo-stream.ppm
 devtool fs mkdir build
@@ -34,17 +33,16 @@ build/bench-core --workers 4
 build/bench-gl
 make bench
 make bench-ascii
-make bench-gles
 ```
 
-Use `LIBGL_ALWAYS_SOFTWARE=1` for llvmpipe. EGL uses Mesa's surfaceless platform. GLFW needs a display. Inspect generated images after changing shaders or rendering code.
+Building `slug/gl` needs `slangc` (see crwin's `GL.slang`). Use `LIBGL_ALWAYS_SOFTWARE=1` for llvmpipe. EGL uses Mesa's surfaceless platform. GLFW needs a display. Inspect generated images after changing shaders or rendering code.
 
 ## Invariants
 
 - `Slug::Instance` is 84 bytes: five vec4 attributes followed by one float dilation attribute. Keep `types.cr`, `gl.cr` and vertex shader offsets aligned.
 - Curve texels are RGBA16F and band texels RG16UI, 4096 texels wide. Both textures use nearest filtering.
 - Packed band flags are defined in `types.cr`; optical weight is OR-ed in during emission.
-- Plain and effects fragment variants share `slug.frag.glsl`; insert `effects.glsl` after the prelude for the effects variant.
+- Shaders compile at build time through crwin's `CrWin::GL.slang` (crwin is a dependency for that macro only; slug loads its own GL entry points). Bindings: curve sampler 0, band sampler 1, `Params` uniform block 2 (matrix rows, viewport; `@[Extern] Params` in `gl.cr` mirrors it). The effects fragment entry point alone imports `effects.slang`.
 - The renderer uploads only new atlas rows. Atlas ID changes replace textures; growth uses GPU copy when available and CPU re-upload otherwise.
 - Persistent streaming fences every written range. Wait before reuse and on wrap. Retained batches own separate GL buffers.
 - FreeType imports another shard may also declare use `Slug_FT_*` Crystal aliases and neutral `Void*` signatures; duplicate C imports must have identical signatures to coexist.

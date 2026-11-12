@@ -21,7 +21,7 @@ require "./slug/emit"
 # Coordinates: em space is font units divided by units-per-em, y up. Object
 # space is em space mapped through `Style#transform`.
 #
-# The OpenGL 4.3 / GLES 3.0 renderer is opt-in: `require "slug/gl"`.
+# The OpenGL 4.3 renderer is opt-in: `require "slug/gl"`.
 module Slug
   VERSION = "0.1.0"
 end

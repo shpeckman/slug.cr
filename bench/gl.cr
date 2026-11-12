@@ -6,7 +6,7 @@ require "../examples/frame"
 require "./support"
 
 options = SlugBench::Options.parse(gpu: true)
-egl = DemoEGL.new(options.es)
+egl = DemoEGL.new
 font = Slug::Font.open(options.font)
 renderer = Slug::GL::Renderer.new { |name| egl.get_proc(name) }
 frame = DemoFrame.new(->egl.get_proc(UInt8*), options.width, options.height, true)
@@ -41,7 +41,7 @@ begin
 
   puts "font: #{options.font}"
   puts "workload: #{options.ascii ? "ASCII" : "Unicode"}; scenes: #{scenes.size}"
-  puts "backend: #{renderer.es? ? "OpenGL ES" : "OpenGL"}; persistent streaming: #{renderer.persistent_streaming?}"
+  puts "persistent streaming: #{renderer.persistent_streaming?}"
   puts "viewport: #{options.width}x#{options.height}; frames per sample: #{options.frames}"
   puts "samples: #{options.samples}; warmup: #{options.warmup}"
   scenes.each { |scene| SlugBench::Memory.instances("plain #{scene[:count]}@#{scene[:size]}", scene[:plain].size) }

@@ -5,3 +5,5 @@
 /lib/
 /.shards/
 *.dwarf
+shard.override.yml
+shard.lock

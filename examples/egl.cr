@@ -17,24 +17,18 @@ class DemoEGL
   getter display = Pointer(Void).null
   getter context = Pointer(Void).null
 
-  def initialize(@es : Bool)
+  def initialize
     platform_surfaceless = 0x31DD_u32
     @display = LibEGL.eglGetPlatformDisplay(platform_surfaceless, Pointer(Void).null, Pointer(Int32).null)
     raise "EGL: no surfaceless display" if @display.null?
     raise "EGL: initialization failed" if LibEGL.eglInitialize(@display, Pointer(Int32).null, Pointer(Int32).null) == 0
-    api = @es ? 0x30A0_u32 : 0x30A2_u32
-    raise "EGL: cannot bind API" if LibEGL.eglBindAPI(api) == 0
+    raise "EGL: cannot bind API" if LibEGL.eglBindAPI(0x30A2_u32) == 0
 
-    renderable = @es ? 0x0040_i32 : 0x0008_i32
-    config_attribs = [0x3040_i32, renderable, 0x3038_i32]
+    config_attribs = [0x3040_i32, 0x0008_i32, 0x3038_i32]
     config = Pointer(Void).null
     found = 0_i32
     LibEGL.eglChooseConfig(@display, config_attribs.to_unsafe, pointerof(config), 1_i32, pointerof(found))
-    context_attribs = if @es
-                        [0x3098_i32, 3_i32, 0x30FB_i32, 0_i32, 0x3038_i32]
-                      else
-                        [0x3098_i32, 4_i32, 0x30FB_i32, 3_i32, 0x30FD_i32, 1_i32, 0x3038_i32]
-                      end
+    context_attribs = [0x3098_i32, 4_i32, 0x30FB_i32, 3_i32, 0x30FD_i32, 1_i32, 0x3038_i32]
     @context = LibEGL.eglCreateContext(@display, config, Pointer(Void).null, context_attribs.to_unsafe)
     raise "EGL: context creation failed" if @context.null?
     empty = Pointer(Void).null
